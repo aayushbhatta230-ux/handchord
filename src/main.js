@@ -1,0 +1,1073 @@
+﻿import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
+import "./style.css";
+
+const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
+const WASM_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm";
+const CAMERA = Object.freeze({ IDLE: "IDLE", STARTING: "STARTING", LIVE: "LIVE", ERROR: "ERROR", STOPPED: "STOPPED" });
+const DEBUG_ENABLED = new URLSearchParams(window.location.search).has("debug");
+
+const CHORDS = {
+  G: {
+    name: "Gmaj7",
+    displayName: "Gmaj7",
+    gesture: "OPEN HAND",
+    // Bass: G2, D3; Upper: G3, B3, D4, F#4 (Common tones with Em7 and Bm7/A)
+    notes: [98.00, 146.83, 196.00, 246.94, 293.66, 369.99]
+  },
+  D: {
+    name: "Dadd9",
+    displayName: "Dadd9",
+    gesture: "PEACE",
+    // Bass: D2, D3; Upper: F#3, A3, D4, E4 (Voice leads smoothly to Em7)
+    notes: [73.42, 146.83, 185.00, 220.00, 293.66, 329.63]
+  },
+  Em: {
+    name: "Em7",
+    displayName: "Em7",
+    gesture: "FIST",
+    // Bass: E2, E3; Upper: G3, B3, D4, E4 (D4 and E4 sustained common tones from Dadd9)
+    notes: [82.41, 164.81, 196.00, 246.94, 293.66, 329.63]
+  },
+  C: {
+    name: "Cadd9",
+    displayName: "Cadd9",
+    gesture: "POINT",
+    // Bass: C2, G2; Upper: G3, C4, D4, E4
+    notes: [65.41, 98.00, 196.00, 261.63, 293.66, 329.63]
+  },
+  Bm: {
+    name: "Bm7/A",
+    displayName: "Bm7/A",
+    gesture: "THREE FINGERS",
+    // Bass: B1, A2; Upper: A3, B3, D4, F#4 (Common tones B3, D4, F#4 with Gmaj7)
+    notes: [61.74, 110.00, 220.00, 246.94, 293.66, 369.99]
+  },
+  A: {
+    name: "Aadd9",
+    displayName: "Aadd9",
+    gesture: "THUMB + INDEX",
+    // Bass: A1, A2; Upper: A3, B3, C#4, E4 (Voice leads seamlessly back to Gmaj7)
+    notes: [55.00, 110.00, 220.00, 246.94, 277.18, 329.63]
+  },
+  MUTE: {
+    name: "MUTE",
+    displayName: "MUTE",
+    gesture: "NO VALID GESTURE",
+    notes: []
+  }
+};
+
+// Iris vocal-phrase-aware accompaniment timing (editable per section)
+const SONGS = {
+  iris: {
+    title: "Iris",
+    artist: "Goo Goo Dolls",
+    tempo: 76,
+    sections: {
+      // Verse: Soft, sparse, warm, lots of sustain, gentle rolling chord changes
+      verse: [
+        { chord: "D",  duration: 3800, intensity: 0.52, rollSpeed: 20, phrase: "And I'd give up forever to touch you", breath: 350 },
+        { chord: "Em", duration: 3800, intensity: 0.50, rollSpeed: 20, phrase: "'Cause I know that you feel me somehow", breath: 350 },
+        { chord: "G",  duration: 4800, intensity: 0.54, rollSpeed: 24, phrase: "You're the closest to heaven that I'll ever be", breath: 500 },
+        { chord: "Bm", duration: 3800, intensity: 0.48, rollSpeed: 20, phrase: "And I don't want to go home right now", breath: 350 },
+        { chord: "A",  duration: 3800, intensity: 0.50, rollSpeed: 20, phrase: "And all I can taste is this moment", breath: 350 },
+        { chord: "G",  duration: 5400, intensity: 0.56, rollSpeed: 24, phrase: "And all I can breathe is your life", breath: 700 }
+      ],
+      // Chorus: Fuller, slightly louder, wider voicings, emotional lift
+      chorus: [
+        { chord: "Bm", duration: 2800, intensity: 0.74, rollSpeed: 16, phrase: "And I don't want the world to see me", breath: 200 },
+        { chord: "A",  duration: 2800, intensity: 0.72, rollSpeed: 16, phrase: "", breath: 200 },
+        { chord: "G",  duration: 4200, intensity: 0.78, rollSpeed: 20, phrase: "", breath: 400 },
+        { chord: "Bm", duration: 2800, intensity: 0.75, rollSpeed: 16, phrase: "'Cause I don't think that they'd understand", breath: 200 },
+        { chord: "A",  duration: 2800, intensity: 0.73, rollSpeed: 16, phrase: "", breath: 200 },
+        { chord: "G",  duration: 4200, intensity: 0.80, rollSpeed: 20, phrase: "", breath: 400 },
+        { chord: "Bm", duration: 2800, intensity: 0.76, rollSpeed: 16, phrase: "When everything's made to be broken", breath: 200 },
+        { chord: "A",  duration: 2800, intensity: 0.74, rollSpeed: 16, phrase: "", breath: 200 },
+        { chord: "G",  duration: 4200, intensity: 0.82, rollSpeed: 20, phrase: "", breath: 400 },
+        { chord: "Bm", duration: 2900, intensity: 0.78, rollSpeed: 16, phrase: "I just want you to know who I am", breath: 250 },
+        { chord: "A",  duration: 2900, intensity: 0.75, rollSpeed: 16, phrase: "", breath: 250 },
+        { chord: "G",  duration: 5600, intensity: 0.84, rollSpeed: 22, phrase: "(Chorus bloom & fade)", breath: 800 }
+      ],
+      // Outro: Tender, quiet resolution, fading out
+      outro: [
+        { chord: "D",  duration: 3800, intensity: 0.46, rollSpeed: 22, phrase: "I just want you to know who I am...", breath: 400 },
+        { chord: "Em", duration: 3800, intensity: 0.44, rollSpeed: 22, phrase: "", breath: 400 },
+        { chord: "G",  duration: 6800, intensity: 0.48, rollSpeed: 26, phrase: "(Final sustained chord)", breath: 1000 }
+      ]
+    }
+  }
+};
+
+function buildSongSchedule(songKey = "iris") {
+  const song = SONGS[songKey];
+  if (!song) return [];
+  const schedule = [];
+  for (const [sectionName, steps] of Object.entries(song.sections)) {
+    steps.forEach((step, idx) => {
+      schedule.push({
+        ...step,
+        section: sectionName,
+        indexInSection: idx
+      });
+    });
+  }
+  return schedule;
+}
+
+const IRIS_AUTOPLAY = buildSongSchedule("iris");
+
+const el = {
+  video: document.querySelector("#camera"),
+  canvas: document.querySelector("#hand-canvas"),
+  start: document.querySelector("#start-camera"),
+  sound: document.querySelector("#sound-toggle"),
+  mute: document.querySelector("#mute-button"),
+  autoPlay: document.querySelector("#auto-play"),
+  appStatus: document.querySelector("#app-status"),
+  cameraStatus: document.querySelector("#camera-status"),
+  note: document.querySelector("#tracking-note"),
+  empty: document.querySelector("#camera-empty"),
+  error: document.querySelector("#camera-error"),
+  gesture: document.querySelector("#detected-gesture"),
+  chord: document.querySelector("#current-chord"),
+  description: document.querySelector("#chord-description"),
+  keys: [...document.querySelectorAll(".piano-key")],
+  progression: [...document.querySelectorAll("#progression [data-chord]")],
+  debug: document.querySelector("#gesture-debug")
+};
+
+const context = el.canvas.getContext("2d");
+let stream = null;
+let cameraState = CAMERA.IDLE;
+let isStartingCamera = false;
+let handLandmarker = null;
+let trackerPromise = null;
+let animationFrame = null;
+let trackerReady = false;
+let lastVideoTime = -1;
+
+// Fast gesture state tracking
+let currentChord = "MUTE";
+let candidateGesture = "MUTE";
+let candidateStartTime = 0;
+let candidateFrames = 0;
+let noHandFrames = 0;
+let rawGesture = "SEARCHING";
+let stableGesture = "SEARCHING";
+let lastClassification = null;
+
+let autoPlayEnabled = false;
+let autoPlayTimer = null;
+let autoPlayIndex = 0;
+
+class AudioEngine {
+  constructor() {
+    this.context = null;
+    this.enabled = true;
+    this.masterBus = null;
+    this.reverbNode = null;
+    this.reverbGain = null;
+    this.activeVoices = [];
+    this.releaseTimer = null;
+    this.lastChord = "MUTE";
+  }
+
+  initContext() {
+    if (this.context) return;
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) throw new Error("Web Audio API is not supported.");
+
+    this.context = new AudioCtx();
+
+    // Clean piano-style master path. No compressor pumping and no delay feedback.
+    this.masterBus = this.context.createGain();
+    this.masterBus.gain.value = 0.45;
+    this.masterBus.connect(this.context.destination);
+
+    // Very subtle small-room reverb: enough air to avoid a dry synthetic sound,
+    // but quiet enough that chord changes stay clearly separated.
+    const preDelay = this.context.createDelay(0.08);
+    preDelay.delayTime.value = 0.018;
+
+    this.reverbNode = this.context.createConvolver();
+    this.reverbGain = this.context.createGain();
+    this.reverbGain.gain.value = 0.055;
+
+    const sampleRate = this.context.sampleRate;
+    const decay = 1.15;
+    const length = Math.floor(sampleRate * decay);
+    const impulse = this.context.createBuffer(2, length, sampleRate);
+
+    for (let ch = 0; ch < 2; ch++) {
+      const data = impulse.getChannelData(ch);
+      for (let i = 0; i < length; i++) {
+        const t = i / sampleRate;
+        // Smooth, low-level room tail; no audible repeated echo.
+        data[i] = (Math.random() * 2 - 1) * Math.exp(-t * 5.2) * 0.16;
+      }
+    }
+
+    this.reverbNode.buffer = impulse;
+    this.masterBus.connect(preDelay);
+    preDelay.connect(this.reverbNode);
+    this.reverbNode.connect(this.reverbGain);
+    this.reverbGain.connect(this.context.destination);
+  }
+
+  async unlock() {
+    this.initContext();
+    if (this.context.state === "suspended") await this.context.resume();
+  }
+
+  // Release ONLY the currently sounding chord. Fading voices are never replayed.
+  release(seconds = 0.75) {
+    if (!this.context) return;
+    const now = this.context.currentTime;
+    const releaseTime = Math.max(0.18, Math.min(seconds, 1.4));
+
+    for (const voice of this.activeVoices) {
+      try {
+        const gain = voice.gain.gain;
+        gain.cancelScheduledValues(now);
+        const current = Math.max(gain.value, 0.00001);
+        gain.setValueAtTime(current, now);
+        gain.exponentialRampToValueAtTime(0.00001, now + releaseTime);
+        voice.oscillators.forEach((osc) => {
+          try { osc.stop(now + releaseTime + 0.03); } catch {}
+        });
+      } catch {}
+    }
+
+    this.activeVoices = [];
+  }
+
+  stopImmediately() {
+    if (!this.context) return;
+    const now = this.context.currentTime;
+    for (const voice of this.activeVoices) {
+      try {
+        voice.gain.gain.cancelScheduledValues(now);
+        voice.gain.gain.setValueAtTime(0.00001, now);
+        voice.oscillators.forEach((osc) => {
+          try { osc.stop(now + 0.01); } catch {}
+        });
+      } catch {}
+    }
+    this.activeVoices = [];
+    this.lastChord = "MUTE";
+  }
+
+  play(chord, intensity = 0.50, rollSpeedMs = 8) {
+    if (!this.enabled || chord === "MUTE" || !CHORDS[chord]) return;
+    this.initContext();
+
+    if (this.context.state === "suspended") {
+      this.context.resume().catch(() => {});
+    }
+
+    // Never layer the new chord on top of the old chord indefinitely.
+    // A short release creates a noticeable but smooth musical transition.
+    this.release(0.42);
+
+    const now = this.context.currentTime + 0.004;
+    const notes = CHORDS[chord].notes;
+    const roll = Math.min(0.012, Math.max(0.003, rollSpeedMs / 1000));
+    const intensityScale = Math.min(0.58, Math.max(0.28, intensity));
+
+    const newVoices = notes.map((frequency, index) => {
+      const isBass = index < 2;
+      const start = now + index * roll;
+
+      const osc = this.context.createOscillator();
+      const bodyOsc = this.context.createOscillator();
+      const gain = this.context.createGain();
+      const filter = this.context.createBiquadFilter();
+
+      // Piano-like harmonic body: triangle fundamental + very quiet octave.
+      osc.type = isBass ? "triangle" : "sine";
+      bodyOsc.type = "sine";
+      osc.frequency.setValueAtTime(frequency, start);
+      bodyOsc.frequency.setValueAtTime(frequency * 2, start);
+
+      filter.type = "lowpass";
+      filter.Q.value = 0.45;
+      filter.frequency.setValueAtTime(
+        Math.min(isBass ? 2600 : 5200, frequency * (isBass ? 4.0 : 7.0)),
+        start
+      );
+      filter.frequency.exponentialRampToValueAtTime(
+        Math.max(900, frequency * 2.1),
+        start + 0.45
+      );
+
+      // Low output level prevents six notes from becoming an oversized wall of sound.
+      const peak = (isBass ? 0.0375 : 0.027) * intensityScale / 0.50;
+      const sustain = peak * (isBass ? 0.38 : 0.42);
+      const overtone = this.context.createGain();
+      overtone.gain.setValueAtTime(isBass ? 0.045 : 0.025, start);
+
+      osc.connect(filter);
+      bodyOsc.connect(overtone);
+      overtone.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.masterBus);
+
+      gain.gain.setValueAtTime(0.00001, start);
+      gain.gain.linearRampToValueAtTime(peak, start + 0.018);
+      gain.gain.exponentialRampToValueAtTime(
+        Math.max(0.0001, sustain),
+        start + 0.32
+      );
+      gain.gain.setTargetAtTime(sustain, start + 0.38, isBass ? 1.0 : 0.82);
+
+      try { osc.start(start); } catch {}
+      try { bodyOsc.start(start); } catch {}
+
+      return {
+        oscillators: [osc, bodyOsc],
+        gain,
+        startTime: start,
+        stopTime: start + 12
+      };
+    });
+
+    this.activeVoices = newVoices;
+    this.lastChord = chord;
+  }
+}
+
+const audio = new AudioEngine();
+
+function setTone(node, tone, text) {
+  node.dataset.tone = tone;
+  const label = node.querySelector("b, span:last-child");
+  if (label) label.textContent = text;
+}
+
+function setTracking(tone, text) {
+  el.note.dataset.tone = tone;
+  const span = el.note.querySelector("span");
+  if (span) span.textContent = text;
+}
+
+function showError(title, detail) {
+  const strong = el.error.querySelector("strong");
+  const p = el.error.querySelector("p");
+  if (strong) strong.textContent = title;
+  if (p) p.textContent = detail;
+  el.error.hidden = false;
+  el.error.classList.remove("hidden");
+}
+
+function hideError() {
+  el.error.hidden = true;
+  el.error.classList.add("hidden");
+}
+
+function resetCanvas() {
+  context.clearRect(0, 0, el.canvas.width, el.canvas.height);
+}
+
+function isLiveVideoReady(video, strm) {
+  if (!video || !strm) return false;
+  if (video.srcObject !== strm) return false;
+  const hasLiveTrack = strm.getVideoTracks().some((track) => track.readyState === "live");
+  const hasVideoData = video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth > 0 && video.videoHeight > 0;
+  return hasLiveTrack || hasVideoData;
+}
+
+function setCameraState(newState, details = {}) {
+  cameraState = newState;
+  console.info(`[CAMERA] State -> ${newState}`, details);
+
+  switch (newState) {
+    case CAMERA.IDLE:
+      el.start.disabled = false;
+      el.start.textContent = "START CAMERA";
+      el.start.classList.remove("is-running");
+      setTone(el.appStatus, "offline", "OFFLINE");
+      setTone(el.cameraStatus, "idle", "CAMERA OFF");
+      setTracking("idle", "Press start camera to begin");
+      el.empty.classList.remove("hidden");
+      hideError();
+      el.video.style.display = "none";
+      el.gesture.textContent = "WAITING";
+      break;
+
+    case CAMERA.STARTING:
+      el.start.disabled = true;
+      el.start.textContent = "STARTINGâ€¦";
+      el.start.classList.remove("is-running");
+      setTone(el.appStatus, "offline", "STARTING");
+      setTone(el.cameraStatus, "idle", "STARTING CAMERA");
+      setTracking("idle", "Accessing cameraâ€¦");
+      hideError();
+      break;
+
+    case CAMERA.LIVE:
+      el.start.disabled = false;
+      el.start.textContent = "STOP CAMERA";
+      el.start.classList.add("is-running");
+      setTone(el.appStatus, "ready", "READY");
+      setTone(el.cameraStatus, "ready", "CAMERA READY");
+      setTracking("ready", trackerReady ? "Searching for hand" : "Loading hand trackingâ€¦");
+      el.empty.classList.add("hidden");
+      hideError();
+      el.video.style.display = "block";
+      console.info("[CAMERA] LIVE");
+      break;
+
+    case CAMERA.ERROR:
+      el.start.disabled = false;
+      el.start.textContent = "START CAMERA";
+      el.start.classList.remove("is-running");
+      setTone(el.appStatus, "error", "OFFLINE");
+      setTone(el.cameraStatus, "error", "CAMERA ERROR");
+      setTracking("error", details.trackingText || "Camera error occurred.");
+      showError(details.title || "Camera Access Required", details.message || "Could not access camera.");
+      el.empty.classList.remove("hidden");
+      el.video.style.display = "none";
+      console.error("[CAMERA] ERROR", details);
+      break;
+
+    case CAMERA.STOPPED:
+      el.start.disabled = false;
+      el.start.textContent = "START CAMERA";
+      el.start.classList.remove("is-running");
+      setTone(el.appStatus, "offline", "OFFLINE");
+      setTone(el.cameraStatus, "idle", "CAMERA OFF");
+      setTracking("idle", "Press start camera to begin");
+      el.empty.classList.remove("hidden");
+      hideError();
+      el.video.style.display = "none";
+      el.gesture.textContent = "WAITING";
+      break;
+  }
+}
+
+function updateDebug() {
+  if (!DEBUG_ENABLED || !el.debug) return;
+  el.debug.hidden = false;
+  const states = lastClassification?.states || {};
+  el.debug.innerHTML = `<b>DEBUG</b><span>Detected: ${rawGesture}</span><span>Stable: ${stableGesture}</span><span>Confidence: ${lastClassification?.confidence?.toFixed(2) || "0.00"}</span><span>Thumb: ${states.thumb || "â€”"} Â· Index: ${states.index || "â€”"}</span><span>Middle: ${states.middle || "â€”"} Â· Ring: ${states.ring || "â€”"} Â· Pinky: ${states.pinky || "â€”"}</span><span>Mapped chord: ${stableGesture in CHORDS ? stableGesture : "â€”"}</span>`;
+}
+
+function updateChord(chord, source = "gesture", intensity = 0.58, rollSpeed = 20, subtitle = null) {
+  if (!CHORDS[chord] || (chord === currentChord && source !== "auto")) return;
+  currentChord = chord;
+
+  if (chord === "MUTE") {
+    audio.release(0.9);
+  } else {
+    audio.play(chord, intensity, rollSpeed);
+  }
+
+  // 2. UI PATH: Update visual elements
+  const data = CHORDS[chord];
+  el.chord.textContent = data.displayName || data.name;
+  el.description.textContent = subtitle || (chord === "MUTE" ? "No chord is playing" : source === "gesture" ? "Controlled by your hand" : source === "auto" ? "Iris accompaniment" : "Playing from the keyboard");
+  el.gesture.textContent = source === "gesture" ? data.gesture : source === "auto" ? "AUTO PLAY" : chord === "MUTE" ? "MUTED" : "KEY PRESSED";
+  el.keys.forEach((key) => key.classList.toggle("active", key.dataset.chord === chord));
+  el.progression.forEach((step) => step.classList.toggle("active", step.dataset.chord === chord));
+  el.mute.classList.toggle("active", chord === "MUTE");
+}
+
+function distance(a, b) {
+  return Math.hypot(a.x - b.x, a.y - b.y, (a.z || 0) - (b.z || 0));
+}
+
+function angle(a, b, c) {
+  const ab = [a.x - b.x, a.y - b.y, (a.z || 0) - (b.z || 0)];
+  const cb = [c.x - b.x, c.y - b.y, (c.z || 0) - (b.z || 0)];
+  const dot = ab[0] * cb[0] + ab[1] * cb[1] + ab[2] * cb[2];
+  const magAB = Math.hypot(...ab);
+  const magCB = Math.hypot(...cb);
+  if (!magAB || !magCB) return 180;
+  const cosine = dot / (magAB * magCB);
+  return Math.acos(Math.max(-1, Math.min(1, cosine))) * 180 / Math.PI;
+}
+
+function fingerState(points, mcp, pip, dip, tip) {
+  const bend = Math.min(
+    angle(points[mcp], points[pip], points[dip]),
+    angle(points[pip], points[dip], points[tip])
+  );
+  const mcpDist = Math.max(distance(points[mcp], points[0]), 0.001);
+  const reach = distance(points[tip], points[0]) / mcpDist;
+  if (bend >= 136 && reach >= 1.18) return "extended";
+  if (bend <= 112 || reach <= 1.04) return "curled";
+  return "partial";
+}
+
+function thumbState(points) {
+  const bend = Math.min(
+    angle(points[1], points[2], points[3]),
+    angle(points[2], points[3], points[4])
+  );
+  const mcpDist = Math.max(distance(points[2], points[0]), 0.001);
+  const reach = distance(points[4], points[0]) / mcpDist;
+  const thumbSpread = distance(points[4], points[5]) / mcpDist;
+  if ((bend >= 132 && reach >= 1.16) || thumbSpread >= 0.85) return "extended";
+  if (bend <= 112 && reach <= 1.05 && thumbSpread < 0.65) return "curled";
+  return "partial";
+}
+
+const GESTURE_TEMPLATES = {
+  G: [
+    ["extended", "extended", "extended", "extended", "extended"]
+  ],
+  D: [
+    ["curled", "extended", "extended", "curled", "curled"]
+  ],
+  Em: [
+    ["curled", "curled", "curled", "curled", "curled"]
+  ],
+  C: [
+    ["curled", "extended", "curled", "curled", "curled"]
+  ],
+  A: [
+    ["extended", "extended", "curled", "curled", "curled"]
+  ],
+  Bm: [
+    ["curled", "extended", "extended", "extended", "curled"],
+    ["extended", "extended", "extended", "curled", "curled"],
+    ["extended", "curled", "extended", "curled", "curled"],
+    ["extended", "curled", "curled", "curled", "extended"]
+  ]
+};
+
+function classifyGesture(points) {
+  const states = {
+    thumb: thumbState(points),
+    index: fingerState(points, 5, 6, 7, 8),
+    middle: fingerState(points, 9, 10, 11, 12),
+    ring: fingerState(points, 13, 14, 15, 16),
+    pinky: fingerState(points, 17, 18, 19, 20)
+  };
+  const values = [states.thumb, states.index, states.middle, states.ring, states.pinky];
+  let best = "MUTE";
+  let confidence = 0;
+
+  for (const [chord, templates] of Object.entries(GESTURE_TEMPLATES)) {
+    for (const template of templates) {
+      let score = 0;
+      for (let i = 0; i < 5; i++) {
+        if (values[i] === template[i]) {
+          score += 1.0;
+        } else if (values[i] === "partial" || template[i] === "partial") {
+          score += 0.45;
+        }
+      }
+      const normalizedScore = score / 5.0;
+      if (normalizedScore > confidence) {
+        best = chord;
+        confidence = normalizedScore;
+      }
+    }
+  }
+
+  return {
+    gesture: confidence >= 0.78 ? best : "MUTE",
+    confidence,
+    states
+  };
+}
+
+// Fast low-latency temporal confirmation (< 50-80ms target)
+function processGesture(points) {
+  if (autoPlayEnabled) return;
+
+  const now = performance.now();
+
+  // If the hand disappears, release the current chord quickly,
+  // but do not react to a single dropped MediaPipe frame.
+  if (!points) {
+    noHandFrames++;
+
+    if (noHandFrames >= 3) {
+      if (currentChord !== "MUTE") {
+        console.info(
+          `[GESTURE] Hand lost -> release at ${now.toFixed(1)}ms`
+        );
+        audio.release(0.9);
+        updateChord("MUTE", "gesture");
+      }
+
+      candidateGesture = "MUTE";
+      candidateStartTime = 0;
+      candidateFrames = 0;
+      stableGesture = "SEARCHING";
+      el.gesture.textContent = "SEARCHING";
+      updateDebug();
+    }
+
+    return;
+  }
+
+  noHandFrames = 0;
+
+  const classification = classifyGesture(points);
+  lastClassification = classification;
+
+  const gesture = classification.gesture || "MUTE";
+  const confidence = classification.confidence || 0;
+
+  rawGesture =
+    gesture === "MUTE"
+      ? "NO VALID GESTURE"
+      : (CHORDS[gesture]?.gesture || "UNKNOWN");
+
+  // Invalid/ambiguous frames should not immediately change the
+  // musical state. This prevents flicker while fingers are moving.
+  if (gesture === "MUTE") {
+    candidateFrames = 0;
+    el.gesture.textContent = rawGesture;
+    updateDebug();
+    return;
+  }
+
+  // New candidate: remember it immediately.
+  if (gesture !== candidateGesture) {
+    candidateGesture = gesture;
+    candidateStartTime = now;
+    candidateFrames = 1;
+
+    updateDebug();
+    return;
+  }
+
+  candidateFrames++;
+
+  const heldMs = now - candidateStartTime;
+
+  // Normal confirmation:
+  // 2 frames OR ~35ms of stable classification.
+  // This is deliberately much shorter than a traditional debounce.
+  const isConfirmed =
+    candidateFrames >= 3 ||
+    heldMs >= 55 ||
+    confidence >= 0.94;
+
+  if (
+    isConfirmed &&
+    gesture !== currentChord
+  ) {
+    stableGesture = gesture;
+
+    console.info(
+      `[GESTURE CONFIRMED] ${gesture} ` +
+      `in ${heldMs.toFixed(1)}ms ` +
+      `(conf=${confidence.toFixed(2)})`
+    );
+
+    // Trigger the Web Audio engine immediately.
+    updateChord(
+      gesture,
+      "gesture",
+      0.60,
+      10
+    );
+  }
+
+  el.gesture.textContent =
+    CHORDS[gesture]?.gesture || rawGesture;
+
+  updateDebug();
+}
+
+const EDGES = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+function drawHand(points) {
+  resetCanvas();
+  context.lineWidth = 2.5;
+  context.strokeStyle = "#a58aff";
+  context.fillStyle = "#8cc2ff";
+  EDGES.forEach(([a, b]) => {
+    context.beginPath();
+    context.moveTo(points[a].x * el.canvas.width, points[a].y * el.canvas.height);
+    context.lineTo(points[b].x * el.canvas.width, points[b].y * el.canvas.height);
+    context.stroke();
+  });
+  points.forEach((point) => {
+    context.beginPath();
+    context.arc(point.x * el.canvas.width, point.y * el.canvas.height, 3.5, 0, Math.PI * 2);
+    context.fill();
+  });
+}
+
+async function initializeTracker() {
+  if (handLandmarker) return handLandmarker;
+  if (trackerPromise) return trackerPromise;
+  trackerPromise = (async () => {
+    console.info("[MEDIAPIPE] Loading vision runtime...");
+    const vision = await FilesetResolver.forVisionTasks(WASM_URL);
+    console.info("[MEDIAPIPE] Vision runtime loaded.");
+    console.info("[MEDIAPIPE] Loading HandLandmarker...");
+    handLandmarker = await HandLandmarker.createFromOptions(vision, {
+      baseOptions: { modelAssetPath: MODEL_URL, delegate: "CPU" },
+      runningMode: "VIDEO",
+      numHands: 1,
+      minHandDetectionConfidence: .55,
+      minHandPresenceConfidence: .55,
+      minTrackingConfidence: .55
+    });
+    trackerReady = true;
+    console.info("[MEDIAPIPE] HandLandmarker loaded.");
+    return handLandmarker;
+  })();
+  try {
+    return await trackerPromise;
+  } catch (error) {
+    handLandmarker = null;
+    trackerReady = false;
+    console.error("[MEDIAPIPE] Initialization failed:", error);
+    throw error;
+  } finally {
+    trackerPromise = null;
+  }
+}
+
+function detectFrame() {
+  if (cameraState !== CAMERA.LIVE || !trackerReady || !handLandmarker) return;
+  if (!isLiveVideoReady(el.video, stream)) {
+    console.warn("[TRACKER] Live video track check failed during detection frame");
+    stopExistingStream();
+    setCameraState(CAMERA.ERROR, {
+      title: "Camera Stream Lost",
+      message: "Camera stream became unavailable during hand tracking.",
+      trackingText: "Camera stream was lost."
+    });
+    return;
+  }
+
+  if (
+    el.video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
+    el.video.videoWidth > 0 &&
+    el.video.videoHeight > 0 &&
+    el.video.currentTime !== lastVideoTime
+  ) {
+    lastVideoTime = el.video.currentTime;
+    try {
+      const result = handLandmarker.detectForVideo(el.video, performance.now());
+      const points = result.landmarks?.[0];
+      if (points) {
+        drawHand(points);
+        processGesture(points);
+        setTone(el.cameraStatus, "active", "HAND DETECTED");
+        setTracking("active", "Hand detected");
+      } else {
+        resetCanvas();
+        processGesture(null);
+        setTone(el.cameraStatus, "ready", "SEARCHING");
+        setTracking("ready", "Searching for hand");
+      }
+    } catch (error) {
+      console.error("[TRACKER] detection failed", error);
+      trackerReady = false;
+      setTone(el.cameraStatus, "error", "TRACKING ERROR");
+      setTracking("error", "Hand tracking error. Restart the camera.");
+      return;
+    }
+  }
+  animationFrame = requestAnimationFrame(detectFrame);
+}
+
+function startDetectionLoop() {
+  if (animationFrame || cameraState !== CAMERA.LIVE || !trackerReady) return;
+  console.info("[TRACKER] detection loop started");
+  animationFrame = requestAnimationFrame(detectFrame);
+}
+
+function stopDetectionLoop() {
+  if (animationFrame) cancelAnimationFrame(animationFrame);
+  animationFrame = null;
+  lastVideoTime = -1;
+}
+
+function playNextAutoChord() {
+  if (!autoPlayEnabled) return;
+  const step = IRIS_AUTOPLAY[autoPlayIndex];
+  autoPlayIndex = (autoPlayIndex + 1) % IRIS_AUTOPLAY.length;
+  updateChord(step.chord, "auto", step.intensity, step.rollSpeed, step.phrase);
+
+  // Natural sustain and crossfade into the next chord
+  const totalStepTime = step.duration + (step.breath || 350);
+
+  // Gentle sustain pedal lift during breath pause before next attack
+  window.setTimeout(() => {
+    if (autoPlayEnabled) {
+      audio.release(1.5);
+    }
+  }, Math.max(step.duration - 250, 600));
+
+  autoPlayTimer = window.setTimeout(playNextAutoChord, totalStepTime);
+}
+
+function setAutoPlay(enabled) {
+  autoPlayEnabled = enabled;
+  window.clearTimeout(autoPlayTimer);
+  autoPlayTimer = null;
+  el.autoPlay.classList.toggle("active", enabled);
+  el.autoPlay.setAttribute("aria-pressed", String(enabled));
+  el.autoPlay.textContent = enabled ? "AUTO PLAY ON" : "AUTO PLAY";
+  if (enabled) {
+    autoPlayIndex = 0;
+    playNextAutoChord();
+  } else {
+    audio.release(0.9);
+    if (currentChord !== "MUTE") updateChord("MUTE", "system");
+  }
+}
+
+function waitForVideoReady(video, strm, timeoutMs = 8000) {
+  return new Promise((resolve, reject) => {
+    if (isLiveVideoReady(video, strm)) {
+      console.info("[CAMERA] video ready");
+      return resolve();
+    }
+
+    let timeoutId = null;
+    let pollInterval = null;
+
+    const cleanup = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      if (pollInterval) clearInterval(pollInterval);
+      video.removeEventListener("loadedmetadata", onMetadata); video.removeEventListener("canplay", onCanPlay); video.removeEventListener("playing", onPlaying); video.removeEventListener("timeupdate", onTimeUpdate); video.removeEventListener("loadeddata", onLoadedData);
+    };
+
+    const checkAndResolve = (sourceEvent) => {
+      if (isLiveVideoReady(video, strm)) {
+        console.info(`[CAMERA] video ready (via ${sourceEvent}: ${video.videoWidth}x${video.videoHeight})`);
+        cleanup();
+        resolve();
+      }
+    };
+
+    const onMetadata = () => {
+      console.info("[CAMERA] video metadata loaded");
+      checkAndResolve("loadedmetadata");
+    };
+
+    const onCanPlay = () => {
+      checkAndResolve("canplay");
+    };
+
+    const onPlaying = () => {
+      console.info("[CAMERA] video playing");
+      checkAndResolve("playing");
+    };
+
+    const onTimeUpdate = () => { checkAndResolve("timeupdate"); }; const onLoadedData = () => { checkAndResolve("loadeddata"); };
+
+    video.addEventListener("loadedmetadata", onMetadata); video.addEventListener("canplay", onCanPlay); video.addEventListener("playing", onPlaying); video.addEventListener("timeupdate", onTimeUpdate); video.addEventListener("loadeddata", onLoadedData);
+
+    pollInterval = setInterval(() => {
+      checkAndResolve("polling");
+    }, 80);
+
+    timeoutId = setTimeout(() => {
+      cleanup();
+      const tracks = strm.getVideoTracks();
+      const trackState = tracks.map((t) => `${t.label || "video"}: ${t.readyState}`).join(", ");
+      console.warn(`[CAMERA] Video ready timeout after ${timeoutMs}ms. videoWidth=${video.videoWidth}, readyState=${video.readyState}, tracks=[${trackState}]`);
+      reject(new Error(`Camera video stream did not produce frames within ${timeoutMs / 1000}s. Please check camera access permissions.`));
+    }, timeoutMs);
+  });
+}
+
+function stopExistingStream() {
+  if (stream) {
+    stream.getTracks().forEach((track) => {
+      try {
+        track.stop();
+        console.info(`[CAMERA] track stopped: ${track.label || "track"}`);
+      } catch {}
+    });
+    stream = null;
+  }
+  if (el.video.srcObject) {
+    el.video.srcObject = null;
+  }
+  stopDetectionLoop();
+  resetCanvas();
+}
+
+async function startCamera() {
+  console.info("[CAMERA] start requested");
+
+  // Prevent multiple simultaneous camera streams
+  if (isStartingCamera || cameraState === CAMERA.LIVE) {
+    console.warn("[CAMERA] startCamera ignored: already starting or live");
+    return;
+  }
+
+  isStartingCamera = true;
+  setCameraState(CAMERA.STARTING);
+
+  // Clean up any existing stream before starting a new one
+  stopExistingStream();
+
+  try {
+    if (!window.isSecureContext) {
+      throw new Error("Camera requires HTTPS or localhost.");
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error("Camera API is not supported on this browser.");
+    }
+
+    console.info("[CAMERA] getUserMedia requested");
+    const constraints = {
+      video: {
+        facingMode: "user",
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      },
+      audio: false
+    };
+
+    let acquiredStream;
+    try {
+      acquiredStream = await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (err) {
+      console.error("[CAMERA] ERROR", err);
+      let errorMsg = "Camera access was denied.";
+      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        errorMsg = "Camera access was denied. Please enable camera access in your browser or device settings.";
+      } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+        errorMsg = "No camera found on this device.";
+      } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
+        errorMsg = "Camera is currently in use by another application or tab.";
+      } else if (err.name === "OverconstrainedError") {
+        console.warn("[CAMERA] OverconstrainedError: retrying with basic video constraint");
+        acquiredStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      } else {
+        errorMsg = err.message || "Failed to access camera.";
+      }
+
+      if (!acquiredStream) {
+        setCameraState(CAMERA.ERROR, {
+          title: "Camera Access Required",
+          message: errorMsg,
+          trackingText: "Camera permission denied or unavailable."
+        });
+        return;
+      }
+    }
+
+    console.info("[CAMERA] stream received");
+    stream = acquiredStream;
+
+    // Track states
+    const tracks = stream.getVideoTracks();
+    tracks.forEach((track) => {
+      console.info(`[CAMERA] track state: ${track.label || "track"} (${track.readyState})`);
+      track.addEventListener("ended", () => {
+        console.warn("[CAMERA] Video track ended unexpectedly");
+        if (cameraState === CAMERA.LIVE) {
+          stopExistingStream();
+          setCameraState(CAMERA.ERROR, {
+            title: "Camera Disconnected",
+            message: "The camera stream was interrupted or disconnected.",
+            trackingText: "Camera stream was disconnected."
+          });
+        }
+      }, { once: true });
+    });
+
+    if (tracks.length === 0 || !tracks.some((t) => t.readyState === "live")) {
+      throw new Error("No live video tracks returned in MediaStream.");
+    }
+
+    // Set video element attributes for iOS before assigning stream
+    el.video.muted = true;
+    el.video.autoplay = true;
+    el.video.playsInline = true;
+    el.video.setAttribute("muted", "");
+    el.video.setAttribute("autoplay", "");
+    el.video.setAttribute("playsinline", "");
+    el.video.setAttribute("webkit-playsinline", "");
+    el.video.style.display = "block";
+
+    console.info("[CAMERA] video srcObject assigned");
+    el.video.srcObject = stream;
+
+    // Play video
+    try {
+      console.info("[CAMERA] video playing");
+      await el.video.play();
+    } catch (playErr) {
+      console.error("[CAMERA] ERROR video.play() failed", playErr);
+      throw new Error(`Video playback failed to start: ${playErr.message || "User interaction required"}`);
+    }
+
+    // Wait for video frames to become ready
+    await waitForVideoReady(el.video, stream, 8000);
+
+    // Sync canvas
+    el.canvas.width = el.video.videoWidth || 640;
+    el.canvas.height = el.video.videoHeight || 480;
+
+    // Camera is verified LIVE
+    setCameraState(CAMERA.LIVE);
+
+    // Only after camera is LIVE, start hand tracking
+    try {
+      setTracking("ready", "Loading hand trackingâ€¦");
+      await initializeTracker();
+      setTone(el.cameraStatus, "ready", "TRACKING READY");
+      setTracking("ready", "Searching for hand");
+      startDetectionLoop();
+    } catch (trackerErr) {
+      console.error("[MEDIAPIPE] Initialization error:", trackerErr);
+      setTone(el.cameraStatus, "error", "TRACKING ERROR");
+      setTracking("error", "Hand tracking unavailable. Digital piano is still playable.");
+    }
+
+  } catch (err) {
+    console.error("[CAMERA] ERROR during startup:", err);
+    stopExistingStream();
+    setCameraState(CAMERA.ERROR, {
+      title: "Camera Failed",
+      message: err.message || "Could not initialize camera stream.",
+      trackingText: "Camera stream failed to initialize."
+    });
+  } finally {
+    isStartingCamera = false;
+  }
+}
+
+function stopCamera() {
+  console.info("[CAMERA] stop requested");
+  isStartingCamera = false;
+  stopExistingStream();
+  setCameraState(CAMERA.STOPPED);
+  candidateGesture = "MUTE";
+  candidateStartTime = 0;
+  candidateFrames = 0;
+  noHandFrames = 0;
+  updateChord("MUTE", "system");
+  console.info("[CAMERA] stopped");
+}
+
+el.start.addEventListener("click", () => {
+  if (cameraState === CAMERA.LIVE || cameraState === CAMERA.STARTING) {
+    stopCamera();
+  } else {
+    startCamera();
+  }
+});
+
+el.keys.forEach((key) => key.addEventListener("click", () => updateChord(key.dataset.chord, "keyboard")));
+el.mute.addEventListener("click", () => updateChord("MUTE", "keyboard"));
+el.autoPlay.addEventListener("click", () => setAutoPlay(!autoPlayEnabled));
+el.sound.addEventListener("click", async () => {
+  audio.enabled = !audio.enabled;
+  el.sound.classList.toggle("is-off", !audio.enabled);
+  el.sound.setAttribute("aria-pressed", String(audio.enabled));
+  el.sound.textContent = audio.enabled ? "SOUND ON" : "SOUND OFF";
+  if (!audio.enabled) audio.release(0.5);
+  // Do not replay the current chord just because SOUND ON was pressed.
+  // The next gesture/key press will intentionally trigger the next sound.
+});
+
+setCameraState(CAMERA.IDLE);
+
