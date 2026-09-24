@@ -31,7 +31,15 @@
           <div class="vision-footer"><div class="current-reading"><span>CURRENT</span><strong id="current-chord">MUTE</strong><p id="chord-description">No chord is playing</p></div><button class="camera-button" id="start-camera" type="button">START CAMERA</button></div>
         </section>
         <section class="keyboard-panel" aria-label="Digital piano">
-          <div class="keyboard-head"><div><span class="section-label">DIGITAL PIANO</span><p>Tap a key or play with gestures</p></div><button class="sound-button" id="sound-toggle" type="button" aria-pressed="true">SOUND ON</button></div>
+          <div class="keyboard-head">
+            <div><span class="section-label">DIGITAL PIANO</span><p>Tap a key or play with gestures</p></div>
+            <div class="volume-control" title="Adjust Sound Volume">
+              <span>VOL</span>
+              <input type="range" id="volume-slider" min="50" max="250" value="180" step="5" aria-label="Volume slider" />
+              <b id="volume-label">180%</b>
+            </div>
+            <button class="sound-button" id="sound-toggle" type="button" aria-pressed="true">SOUND ON</button>
+          </div>
           <div class="song-mode"><div><span>NOW PLAYING</span><strong>IRIS</strong><small>Goo Goo Dolls</small></div><button id="auto-play" type="button" aria-pressed="false">AUTO PLAY</button></div>
           <div class="piano" role="group" aria-label="Chord keys">
             <button class="piano-key" type="button" data-chord="G" aria-label="Play Gmaj7"><strong>G</strong><span>Gmaj7</span><small>OPEN HAND</small></button><button class="piano-key" type="button" data-chord="D" aria-label="Play Dadd9"><strong>D</strong><span>Dadd9</span><small>PEACE</small></button><button class="piano-key" type="button" data-chord="Em" aria-label="Play Em7"><strong>Em</strong><span>Em7</span><small>FIST</small></button><button class="piano-key" type="button" data-chord="C" aria-label="Play Cadd9"><strong>C</strong><span>Cadd9</span><small>POINT</small></button><button class="piano-key" type="button" data-chord="Bm" aria-label="Play Bm7/A"><strong>Bm</strong><span>Bm7/A</span><small>3 FINGERS</small></button><button class="piano-key" type="button" data-chord="A" aria-label="Play Aadd9"><strong>A</strong><span>Aadd9</span><small>THUMB+INDEX</small></button>

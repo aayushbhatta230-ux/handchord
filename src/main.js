@@ -133,7 +133,9 @@ const el = {
   description: document.querySelector("#chord-description"),
   keys: [...document.querySelectorAll(".piano-key")],
   progression: [...document.querySelectorAll("#progression [data-chord]")],
-  debug: document.querySelector("#gesture-debug")
+  debug: document.querySelector("#gesture-debug"),
+  volumeSlider: document.querySelector("#volume-slider"),
+  volumeLabel: document.querySelector("#volume-label")
 };
 
 const context = el.canvas.getContext("2d");
@@ -164,13 +166,19 @@ class AudioEngine {
   constructor() {
     this.context = null;
     this.enabled = true;
+    this.volume = 1.8;
+    this.masterGain = null;
     this.masterBus = null;
-    this.limiter = null;
-    this.reverbNode = null;
-    this.reverbGain = null;
     this.activeVoices = [];
     this.releaseTimer = null;
     this.lastChord = "MUTE";
+  }
+
+  setVolume(vol) {
+    this.volume = Math.max(0, Math.min(3.0, vol));
+    if (this.masterGain && this.context) {
+      this.masterGain.gain.setValueAtTime(this.volume, this.context.currentTime);
+    }
   }
 
   initContext() {
@@ -184,25 +192,24 @@ class AudioEngine {
     try {
       this.context = new AudioCtx();
 
-      // Master output bus with strong output drive
+      // Master output bus with volume control
       this.masterBus = this.context.createGain();
-      this.masterBus.gain.value = 1.45;
+      this.masterBus.gain.value = 1.0;
 
-      // Studio-style mastering limiter prevents digital clipping while allowing loud output
+      this.masterGain = this.context.createGain();
+      this.masterGain.gain.value = this.volume;
+
+      // Transparent limiter prevents digital clipping while allowing loud output
       this.limiter = this.context.createDynamicsCompressor();
-      this.limiter.threshold.setValueAtTime(-5, this.context.currentTime);
+      this.limiter.threshold.setValueAtTime(-1.5, this.context.currentTime);
       this.limiter.knee.setValueAtTime(4, this.context.currentTime);
-      this.limiter.ratio.setValueAtTime(18, this.context.currentTime);
+      this.limiter.ratio.setValueAtTime(10, this.context.currentTime);
       this.limiter.attack.setValueAtTime(0.002, this.context.currentTime);
-      this.limiter.release.setValueAtTime(0.12, this.context.currentTime);
-
-      // Output booster node for punchy speaker playback
-      this.outputBooster = this.context.createGain();
-      this.outputBooster.gain.value = 1.35;
+      this.limiter.release.setValueAtTime(0.08, this.context.currentTime);
 
       this.masterBus.connect(this.limiter);
-      this.limiter.connect(this.outputBooster);
-      this.outputBooster.connect(this.context.destination);
+      this.limiter.connect(this.masterGain);
+      this.masterGain.connect(this.context.destination);
 
       // Ambient acoustic room shimmer
       try {
@@ -215,7 +222,7 @@ class AudioEngine {
           const data = impulse.getChannelData(ch);
           for (let i = 0; i < length; i++) {
             const t = i / sampleRate;
-            data[i] = (Math.random() * 2 - 1) * Math.exp(-t * 5.5) * 0.15;
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-t * 5.5) * 0.12;
           }
         }
 
@@ -226,12 +233,12 @@ class AudioEngine {
         this.reverbNode.buffer = impulse;
 
         this.reverbGain = this.context.createGain();
-        this.reverbGain.gain.setValueAtTime(0.07, this.context.currentTime);
+        this.reverbGain.gain.setValueAtTime(0.06, this.context.currentTime);
 
         this.masterBus.connect(preDelay);
         preDelay.connect(this.reverbNode);
         this.reverbNode.connect(this.reverbGain);
-        this.reverbGain.connect(this.limiter);
+        this.reverbGain.connect(this.masterGain);
       } catch (revErr) {
         console.warn("[AUDIO] Reverb setup skipped:", revErr);
       }
@@ -295,7 +302,7 @@ class AudioEngine {
     this.lastChord = "MUTE";
   }
 
-  async play(chord, intensity = 0.75, rollSpeedMs = 12) {
+  async play(chord, intensity = 0.85, rollSpeedMs = 12) {
     if (!this.enabled || chord === "MUTE" || !CHORDS[chord]) return;
     this.initContext();
     if (!this.context) return;
@@ -309,15 +316,18 @@ class AudioEngine {
     }
 
     // Release old chord voices smoothly without abrupt cuts
-    this.release(0.35);
+    this.release(0.32);
 
     const now = this.context.currentTime + 0.012;
     const notes = CHORDS[chord].notes;
-    const roll = Math.min(0.024, Math.max(0.005, rollSpeedMs / 1000));
-    const intensityScale = Math.min(1.2, Math.max(0.5, intensity));
+    const roll = Math.min(0.022, Math.max(0.005, rollSpeedMs / 1000));
+    const intensityScale = Math.min(1.4, Math.max(0.6, intensity));
 
     const newVoices = notes.map((frequency, index) => {
-      const isBass = index < 2;
+      // Psychoacoustic bass boost: Frequencies < 115 Hz (A1, B1, C2, D2, E2, G2)
+      // are doubled an octave up so phone and laptop speakers can physically reproduce the pitch!
+      const isLow = frequency < 115;
+      const playFreq = isLow ? frequency * 2 : frequency;
       const start = now + index * roll;
 
       const osc = this.context.createOscillator();
@@ -325,37 +335,33 @@ class AudioEngine {
       const gain = this.context.createGain();
       const filter = this.context.createBiquadFilter();
 
-      // Primary oscillator: warm triangle for acoustic fundamental
-      osc.type = isBass ? "triangle" : "triangle";
-      osc.frequency.setValueAtTime(frequency, start);
+      // Sawtooth waveform filtered by resonant lowpass filter:
+      // Industry gold-standard for bright acoustic guitar and electric piano!
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(playFreq, start);
 
-      // Body oscillator: adds harmonic punch and crisp acoustic presence
-      bodyOsc.type = isBass ? "sine" : "sawtooth";
-      bodyOsc.frequency.setValueAtTime(frequency * (isBass ? 2.0 : 1.0), start);
-      bodyOsc.detune.setValueAtTime(isBass ? 4 : 6, start);
+      // Warm triangle sub-body
+      bodyOsc.type = "triangle";
+      bodyOsc.frequency.setValueAtTime(frequency, start);
 
-      const overtoneGain = this.context.createGain();
-      overtoneGain.gain.setValueAtTime(isBass ? 0.35 : 0.25, start);
-
-      // Dynamic lowpass filter with generous presence cutoff for clear laptop speaker projection
+      // Resonant filter gives singing acoustic tone that cuts through laptop speakers
       filter.type = "lowpass";
-      filter.Q.setValueAtTime(0.7, start);
-      const openFreq = Math.min(8000, frequency * (isBass ? 6.5 : 10.0));
+      filter.Q.setValueAtTime(1.6, start);
+      const openFreq = Math.min(7500, playFreq * 6.5);
       filter.frequency.setValueAtTime(openFreq, start);
-      filter.frequency.setTargetAtTime(Math.max(700, frequency * 2.8), start + 0.03, 0.45);
+      filter.frequency.setTargetAtTime(Math.max(900, playFreq * 2.2), start + 0.03, 0.40);
 
-      // Amplified Amplitude Envelope (loud, punchy attack with rich sustained body)
-      const peak = (isBass ? 0.42 : 0.35) * (intensityScale / 0.75);
-      const sustain = peak * (isBass ? 0.45 : 0.38);
+      // Peak volume tuned for loud, punchy playback
+      const peak = (isLow ? 0.35 : 0.28) * (intensityScale / 0.85);
+      const sustain = peak * 0.48;
 
       osc.connect(filter);
-      bodyOsc.connect(overtoneGain);
-      overtoneGain.connect(filter);
+      bodyOsc.connect(filter);
       filter.connect(gain);
       gain.connect(this.masterBus);
 
       gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.linearRampToValueAtTime(peak, start + 0.015);
+      gain.gain.linearRampToValueAtTime(peak, start + 0.014);
       gain.gain.setTargetAtTime(sustain, start + 0.03, 0.65);
 
       try { osc.start(start); } catch {}
@@ -518,13 +524,13 @@ function updateChord(chord, source = "gesture", intensity = 0.65, rollSpeed = 16
 }
 
 function distance(a, b) {
-  return Math.hypot(a.x - b.x, a.y - b.y, (a.z || 0) - (b.z || 0));
+  return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
 function angle(a, b, c) {
-  const ab = [a.x - b.x, a.y - b.y, (a.z || 0) - (b.z || 0)];
-  const cb = [c.x - b.x, c.y - b.y, (c.z || 0) - (b.z || 0)];
-  const dot = ab[0] * cb[0] + ab[1] * cb[1] + ab[2] * cb[2];
+  const ab = [a.x - b.x, a.y - b.y];
+  const cb = [c.x - b.x, c.y - b.y];
+  const dot = ab[0] * cb[0] + ab[1] * cb[1];
   const magAB = Math.hypot(...ab);
   const magCB = Math.hypot(...cb);
   if (!magAB || !magCB) return 180;
@@ -533,18 +539,29 @@ function angle(a, b, c) {
 }
 
 function isFingerExtended(points, mcp, pip, dip, tip) {
-  const wrist = points[0];
-  const tipDist = distance(points[tip], wrist);
-  const pipDist = distance(points[pip], wrist);
-  const mcpDist = Math.max(distance(points[mcp], wrist), 0.001);
-  const reach = tipDist / mcpDist;
+  // Reference vector from wrist (0) to middle finger base (9)
+  const upX = points[9].x - points[0].x;
+  const upY = points[9].y - points[0].y;
+  const handSize = Math.hypot(upX, upY) || 0.001;
+  const dirX = upX / handSize;
+  const dirY = upY / handSize;
 
-  const bend = Math.min(
-    angle(points[mcp], points[pip], points[dip]),
-    angle(points[pip], points[dip], points[tip])
-  );
+  // Vector from PIP to TIP along hand direction
+  const tipRelX = points[tip].x - points[pip].x;
+  const tipRelY = points[tip].y - points[pip].y;
+  const tipProj = tipRelX * dirX + tipRelY * dirY;
 
-  return tipDist > pipDist * 1.08 && reach >= 1.12 && bend >= 120;
+  // Distance from TIP to Wrist vs PIP to Wrist in pure 2D
+  const tipDist2D = Math.hypot(points[tip].x - points[0].x, points[tip].y - points[0].y);
+  const pipDist2D = Math.hypot(points[pip].x - points[0].x, points[pip].y - points[0].y);
+
+  // In webcam space (y is 0 at top, 1 at bottom, so higher = smaller y):
+  const isHigherThanPip = points[tip].y < points[pip].y - 0.015;
+  const isProjectingOutward = tipProj > 0.035 * handSize;
+  const isLongerThanPip = tipDist2D > pipDist2D * 1.05;
+
+  // A finger is extended if tip extends outward and upward past PIP knuckle
+  return (isHigherThanPip && isProjectingOutward) || (isHigherThanPip && isLongerThanPip);
 }
 
 function isThumbExtended(points) {
@@ -553,13 +570,14 @@ function isThumbExtended(points) {
   const indexMcp = points[5];
   const thumbMcp = points[2];
 
-  const spread = distance(thumbTip, indexMcp) / Math.max(distance(thumbMcp, wrist), 0.001);
+  const handSize = Math.hypot(points[9].x - points[0].x, points[9].y - points[0].y) || 0.001;
+  const spread2D = Math.hypot(thumbTip.x - indexMcp.x, thumbTip.y - indexMcp.y) / handSize;
   const bend = Math.min(
     angle(points[1], points[2], points[3]),
     angle(points[2], points[3], points[4])
   );
 
-  return bend >= 130 && spread >= 0.70;
+  return spread2D > 0.62 && bend > 125;
 }
 
 function classifyGesture(points) {
@@ -578,17 +596,17 @@ function classifyGesture(points) {
   };
 
   let chord = "MUTE";
-  let confidence = 0.96;
+  let confidence = 0.98;
 
   // 1. OPEN HAND (G): All 4 fingers (index, middle, ring, pinky) extended!
   if (indexUp && middleUp && ringUp && pinkyUp) {
     chord = "G";
   }
-  // 2. THREE FINGERS (Bm): Exactly 3 fingers up (Index + Middle + Ring) AND Pinky MUST be curled!
+  // 2. THREE FINGERS (Bm): Exactly Index, Middle, Ring extended AND Pinky curled!
   else if (indexUp && middleUp && ringUp && !pinkyUp) {
     chord = "Bm";
   }
-  // 3. PEACE SIGN (D): Exactly 2 fingers up (Index + Middle) AND Ring & Pinky MUST be curled!
+  // 3. PEACE SIGN (D): Exactly Index & Middle extended AND Ring & Pinky curled!
   // (Thumb can be anywhere - folded over fingers or out, 2 fingers is ALWAYS Peace Sign)
   else if (indexUp && middleUp && !ringUp && !pinkyUp) {
     chord = "D";
@@ -605,7 +623,7 @@ function classifyGesture(points) {
   else if (!indexUp && !middleUp && !ringUp && !pinkyUp) {
     chord = "Em";
   } else {
-    confidence = 0.50;
+    confidence = 0.40;
   }
 
   return {
@@ -1135,6 +1153,14 @@ el.sound.addEventListener("click", async () => {
   el.sound.textContent = audio.enabled ? "SOUND ON" : "SOUND OFF";
   if (!audio.enabled) audio.release(0.5);
 });
+
+if (el.volumeSlider && el.volumeLabel) {
+  el.volumeSlider.addEventListener("input", (e) => {
+    const val = parseFloat(e.target.value);
+    audio.setVolume(val / 100);
+    el.volumeLabel.textContent = `${val}%`;
+  });
+}
 
 setCameraState(CAMERA.IDLE);
 

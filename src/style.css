@@ -322,6 +322,35 @@ h1 {
   font-size: 11px;
 }
 
+.volume-control {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 9px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  font-family: "DM Mono", monospace;
+  font-size: 9px;
+}
+
+.volume-control span {
+  color: var(--muted);
+}
+
+.volume-control input[type="range"] {
+  width: 65px;
+  height: 4px;
+  accent-color: var(--purple);
+  cursor: pointer;
+}
+
+.volume-control b {
+  min-width: 32px;
+  color: var(--purple);
+  text-align: right;
+}
+
 .sound-button {
   min-height: 35px;
   padding: 0 10px;
