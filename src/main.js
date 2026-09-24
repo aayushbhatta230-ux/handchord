@@ -166,7 +166,7 @@ class AudioEngine {
   constructor() {
     this.context = null;
     this.enabled = true;
-    this.volume = 1.8;
+    this.volume = 2.0;
     this.masterGain = null;
     this.masterBus = null;
     this.activeVoices = [];
@@ -175,7 +175,7 @@ class AudioEngine {
   }
 
   setVolume(vol) {
-    this.volume = Math.max(0, Math.min(3.0, vol));
+    this.volume = Math.max(0, Math.min(3.5, vol));
     if (this.masterGain && this.context) {
       this.masterGain.gain.setValueAtTime(this.volume, this.context.currentTime);
     }
@@ -194,18 +194,18 @@ class AudioEngine {
 
       // Master output bus with volume control
       this.masterBus = this.context.createGain();
-      this.masterBus.gain.value = 1.0;
+      this.masterBus.gain.value = 1.35;
 
       this.masterGain = this.context.createGain();
       this.masterGain.gain.value = this.volume;
 
-      // Transparent limiter prevents digital clipping while allowing loud output
+      // Transparent limiter prevents digital clipping while allowing loud punchy output
       this.limiter = this.context.createDynamicsCompressor();
-      this.limiter.threshold.setValueAtTime(-1.5, this.context.currentTime);
-      this.limiter.knee.setValueAtTime(4, this.context.currentTime);
-      this.limiter.ratio.setValueAtTime(10, this.context.currentTime);
-      this.limiter.attack.setValueAtTime(0.002, this.context.currentTime);
-      this.limiter.release.setValueAtTime(0.08, this.context.currentTime);
+      this.limiter.threshold.setValueAtTime(-0.5, this.context.currentTime);
+      this.limiter.knee.setValueAtTime(2, this.context.currentTime);
+      this.limiter.ratio.setValueAtTime(3.5, this.context.currentTime);
+      this.limiter.attack.setValueAtTime(0.001, this.context.currentTime);
+      this.limiter.release.setValueAtTime(0.06, this.context.currentTime);
 
       this.masterBus.connect(this.limiter);
       this.limiter.connect(this.masterGain);
@@ -214,7 +214,7 @@ class AudioEngine {
       // Ambient acoustic room shimmer
       try {
         const sampleRate = this.context.sampleRate || 44100;
-        const decay = 1.0;
+        const decay = 1.1;
         const length = Math.floor(sampleRate * decay);
         const impulse = this.context.createBuffer(2, length, sampleRate);
 
@@ -222,18 +222,18 @@ class AudioEngine {
           const data = impulse.getChannelData(ch);
           for (let i = 0; i < length; i++) {
             const t = i / sampleRate;
-            data[i] = (Math.random() * 2 - 1) * Math.exp(-t * 5.5) * 0.12;
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-t * 5.0) * 0.16;
           }
         }
 
         const preDelay = this.context.createDelay(0.06);
-        preDelay.delayTime.setValueAtTime(0.015, this.context.currentTime);
+        preDelay.delayTime.setValueAtTime(0.012, this.context.currentTime);
 
         this.reverbNode = this.context.createConvolver();
         this.reverbNode.buffer = impulse;
 
         this.reverbGain = this.context.createGain();
-        this.reverbGain.gain.setValueAtTime(0.06, this.context.currentTime);
+        this.reverbGain.gain.setValueAtTime(0.08, this.context.currentTime);
 
         this.masterBus.connect(preDelay);
         preDelay.connect(this.reverbNode);
@@ -302,7 +302,7 @@ class AudioEngine {
     this.lastChord = "MUTE";
   }
 
-  async play(chord, intensity = 0.85, rollSpeedMs = 12) {
+  async play(chord, intensity = 0.95, rollSpeedMs = 12) {
     if (!this.enabled || chord === "MUTE" || !CHORDS[chord]) return;
     this.initContext();
     if (!this.context) return;
@@ -324,9 +324,9 @@ class AudioEngine {
     const intensityScale = Math.min(1.4, Math.max(0.6, intensity));
 
     const newVoices = notes.map((frequency, index) => {
-      // Psychoacoustic bass boost: Frequencies < 115 Hz (A1, B1, C2, D2, E2, G2)
-      // are doubled an octave up so phone and laptop speakers can physically reproduce the pitch!
-      const isLow = frequency < 115;
+      // Laptop speakers struggle under 130 Hz.
+      // Doubling sub-130Hz bass notes brings them into clear acoustic range:
+      const isLow = frequency < 130;
       const playFreq = isLow ? frequency * 2 : frequency;
       const start = now + index * roll;
 
@@ -342,18 +342,18 @@ class AudioEngine {
 
       // Warm triangle sub-body
       bodyOsc.type = "triangle";
-      bodyOsc.frequency.setValueAtTime(frequency, start);
+      bodyOsc.frequency.setValueAtTime(isLow ? frequency : playFreq * 0.5, start);
 
       // Resonant filter gives singing acoustic tone that cuts through laptop speakers
       filter.type = "lowpass";
-      filter.Q.setValueAtTime(1.6, start);
-      const openFreq = Math.min(7500, playFreq * 6.5);
+      filter.Q.setValueAtTime(2.0, start);
+      const openFreq = Math.min(8500, playFreq * 8.0);
       filter.frequency.setValueAtTime(openFreq, start);
-      filter.frequency.setTargetAtTime(Math.max(900, playFreq * 2.2), start + 0.03, 0.40);
+      filter.frequency.setTargetAtTime(Math.max(1100, playFreq * 2.8), start + 0.02, 0.70);
 
       // Peak volume tuned for loud, punchy playback
-      const peak = (isLow ? 0.35 : 0.28) * (intensityScale / 0.85);
-      const sustain = peak * 0.48;
+      const peak = (isLow ? 0.48 : 0.42) * (intensityScale / 0.85);
+      const sustain = peak * 0.60;
 
       osc.connect(filter);
       bodyOsc.connect(filter);
@@ -361,8 +361,8 @@ class AudioEngine {
       gain.connect(this.masterBus);
 
       gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.linearRampToValueAtTime(peak, start + 0.014);
-      gain.gain.setTargetAtTime(sustain, start + 0.03, 0.65);
+      gain.gain.linearRampToValueAtTime(peak, start + 0.012);
+      gain.gain.setTargetAtTime(sustain, start + 0.03, 0.80);
 
       try { osc.start(start); } catch {}
       try { bodyOsc.start(start); } catch {}
@@ -523,104 +523,142 @@ function updateChord(chord, source = "gesture", intensity = 0.65, rollSpeed = 16
   el.mute.classList.toggle("active", chord === "MUTE");
 }
 
-function distance(a, b) {
+function distance2D(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
-function angle(a, b, c) {
-  const ab = [a.x - b.x, a.y - b.y];
-  const cb = [c.x - b.x, c.y - b.y];
-  const dot = ab[0] * cb[0] + ab[1] * cb[1];
+function angle3D(a, b, c) {
+  const ab = [a.x - b.x, a.y - b.y, (a.z - b.z) || 0];
+  const cb = [c.x - b.x, c.y - b.y, (c.z - b.z) || 0];
+  const dot = ab[0] * cb[0] + ab[1] * cb[1] + ab[2] * cb[2];
   const magAB = Math.hypot(...ab);
   const magCB = Math.hypot(...cb);
   if (!magAB || !magCB) return 180;
-  const cosine = dot / (magAB * magCB);
-  return Math.acos(Math.max(-1, Math.min(1, cosine))) * 180 / Math.PI;
+  const cosine = Math.max(-1, Math.min(1, dot / (magAB * magCB)));
+  return (Math.acos(cosine) * 180) / Math.PI;
 }
 
-function isFingerExtended(points, mcp, pip, dip, tip) {
-  // Reference vector from wrist (0) to middle finger base (9)
-  const upX = points[9].x - points[0].x;
-  const upY = points[9].y - points[0].y;
-  const handSize = Math.hypot(upX, upY) || 0.001;
-  const dirX = upX / handSize;
-  const dirY = upY / handSize;
-
-  // Vector from PIP to TIP along hand direction
-  const tipRelX = points[tip].x - points[pip].x;
-  const tipRelY = points[tip].y - points[pip].y;
-  const tipProj = tipRelX * dirX + tipRelY * dirY;
-
-  // Distance from TIP to Wrist vs PIP to Wrist in pure 2D
-  const tipDist2D = Math.hypot(points[tip].x - points[0].x, points[tip].y - points[0].y);
-  const pipDist2D = Math.hypot(points[pip].x - points[0].x, points[pip].y - points[0].y);
-
-  // In webcam space (y is 0 at top, 1 at bottom, so higher = smaller y):
-  const isHigherThanPip = points[tip].y < points[pip].y - 0.015;
-  const isProjectingOutward = tipProj > 0.035 * handSize;
-  const isLongerThanPip = tipDist2D > pipDist2D * 1.05;
-
-  // A finger is extended if tip extends outward and upward past PIP knuckle
-  return (isHigherThanPip && isProjectingOutward) || (isHigherThanPip && isLongerThanPip);
-}
-
-function isThumbExtended(points) {
+// Highly reliable finger extension test based on joint straightness and knuckle bend angles
+function checkFinger(points, mcp, pip, dip, tip) {
   const wrist = points[0];
-  const thumbTip = points[4];
+
+  // 1. Total joint-segment bone length
+  const boneLen =
+    distance2D(points[mcp], points[pip]) +
+    distance2D(points[pip], points[dip]) +
+    distance2D(points[dip], points[tip]);
+
+  // 2. Straightness: Direct MCP to Tip distance vs total bone length
+  // Extended finger has straightness ~ 0.82 - 0.98. Curled finger has straightness < 0.50.
+  const span = distance2D(points[mcp], points[tip]);
+  const straightness = span / (boneLen || 0.001);
+
+  // 3. Wrist distance ratio: Tip should be further from wrist than PIP is
+  const distTipWrist = distance2D(points[tip], wrist);
+  const distPipWrist = distance2D(points[pip], wrist);
+  const wristRatio = distTipWrist / (distPipWrist || 0.001);
+
+  // 4. PIP knuckle angle (extended > 125°, curled < 95°)
+  const pipAngle = angle3D(points[mcp], points[pip], points[dip]);
+
+  // 5. Screen height check (y is 0 at top, so smaller y = higher on screen)
+  const isTipAbovePip = points[tip].y < points[pip].y - 0.01;
+
+  // Final extension determination:
+  // A finger is extended IF it is straight AND unbent at the PIP joint
+  // AND either further from wrist or clearly higher on screen.
+  const isExtended =
+    straightness > 0.65 &&
+    pipAngle > 118 &&
+    (wristRatio > 1.08 || isTipAbovePip);
+
+  return {
+    extended: isExtended,
+    straightness,
+    pipAngle,
+    wristRatio,
+    tipIndex: tip
+  };
+}
+
+function checkThumb(points) {
+  const wrist = points[0];
+  const cmc = points[1];
+  const mcp = points[2];
+  const ip = points[3];
+  const tip = points[4];
   const indexMcp = points[5];
-  const thumbMcp = points[2];
+  const middleMcp = points[9];
 
-  const handSize = Math.hypot(points[9].x - points[0].x, points[9].y - points[0].y) || 0.001;
-  const spread2D = Math.hypot(thumbTip.x - indexMcp.x, thumbTip.y - indexMcp.y) / handSize;
-  const bend = Math.min(
-    angle(points[1], points[2], points[3]),
-    angle(points[2], points[3], points[4])
-  );
+  const palmSize = distance2D(wrist, middleMcp) || 0.001;
+  const spread = distance2D(tip, indexMcp) / palmSize;
+  const thumbAngle = angle3D(mcp, ip, tip);
+  const distTipWrist = distance2D(tip, wrist);
+  const distMcpWrist = distance2D(mcp, wrist);
 
-  return spread2D > 0.62 && bend > 125;
+  // Thumb is extended when flared away from palm and unfolded
+  const isExtended = spread > 0.48 && thumbAngle > 125 && distTipWrist > distMcpWrist * 1.05;
+
+  return {
+    extended: isExtended,
+    spread,
+    thumbAngle,
+    tipIndex: 4
+  };
 }
 
 function classifyGesture(points) {
-  const indexUp = isFingerExtended(points, 5, 6, 7, 8);
-  const middleUp = isFingerExtended(points, 9, 10, 11, 12);
-  const ringUp = isFingerExtended(points, 13, 14, 15, 16);
-  const pinkyUp = isFingerExtended(points, 17, 18, 19, 20);
-  const thumbUp = isThumbExtended(points);
+  const idx = checkFinger(points, 5, 6, 7, 8);
+  const mid = checkFinger(points, 9, 10, 11, 12);
+  const rng = checkFinger(points, 13, 14, 15, 16);
+  const pnk = checkFinger(points, 17, 18, 19, 20);
+  const thb = checkThumb(points);
 
   const states = {
-    thumb: thumbUp ? "extended" : "curled",
-    index: indexUp ? "extended" : "curled",
-    middle: middleUp ? "extended" : "curled",
-    ring: ringUp ? "extended" : "curled",
-    pinky: pinkyUp ? "extended" : "curled"
+    thumb: thb.extended ? "extended" : "curled",
+    index: idx.extended ? "extended" : "curled",
+    middle: mid.extended ? "extended" : "curled",
+    ring: rng.extended ? "extended" : "curled",
+    pinky: pnk.extended ? "extended" : "curled"
   };
+
+  const extendedCount = [idx.extended, mid.extended, rng.extended, pnk.extended].filter(Boolean).length;
 
   let chord = "MUTE";
   let confidence = 0.98;
 
-  // 1. OPEN HAND (G): All 4 fingers (index, middle, ring, pinky) extended!
-  if (indexUp && middleUp && ringUp && pinkyUp) {
+  // 1. OPEN HAND (G): All 4 fingers extended
+  if (extendedCount >= 4) {
     chord = "G";
   }
-  // 2. THREE FINGERS (Bm): Exactly Index, Middle, Ring extended AND Pinky curled!
-  else if (indexUp && middleUp && ringUp && !pinkyUp) {
+  // 2. THREE FINGERS (Bm): Exactly 3 fingers extended (Index + Middle + Ring up, Pinky curled)
+  else if (extendedCount === 3 && idx.extended && mid.extended && rng.extended && !pnk.extended) {
     chord = "Bm";
   }
-  // 3. PEACE SIGN (D): Exactly Index & Middle extended AND Ring & Pinky curled!
-  // (Thumb can be anywhere - folded over fingers or out, 2 fingers is ALWAYS Peace Sign)
-  else if (indexUp && middleUp && !ringUp && !pinkyUp) {
+  // 3. PEACE SIGN (D): Exactly 2 fingers extended (Index + Middle up, Ring & Pinky curled)
+  else if (extendedCount === 2 && idx.extended && mid.extended && !rng.extended && !pnk.extended) {
     chord = "D";
   }
-  // 4. POINT (C): Only Index finger extended, Middle/Ring/Pinky and Thumb curled
-  else if (indexUp && !middleUp && !ringUp && !pinkyUp && !thumbUp) {
-    chord = "C";
+  // If count is exactly 2, GUARANTEE Peace Sign (D)
+  else if (extendedCount === 2) {
+    chord = "D";
   }
-  // 5. THUMB + INDEX (A): Thumb and Index extended, Middle/Ring/Pinky curled
-  else if (indexUp && !middleUp && !ringUp && !pinkyUp && thumbUp) {
-    chord = "A";
+  // If count is exactly 3, GUARANTEE Three Fingers (Bm)
+  else if (extendedCount === 3) {
+    chord = "Bm";
   }
-  // 6. FIST (Em): All 4 main fingers curled
-  else if (!indexUp && !middleUp && !ringUp && !pinkyUp) {
+  // 4. SINGLE FINGER (Point C or Thumb+Index A)
+  else if (extendedCount === 1) {
+    if (idx.extended && thb.extended) {
+      chord = "A"; // THUMB + INDEX
+    } else if (idx.extended) {
+      chord = "C"; // POINT
+    } else {
+      chord = "C";
+    }
+  }
+  // 5. FIST (Em): 0 fingers extended
+  else if (extendedCount === 0) {
     chord = "Em";
   } else {
     confidence = 0.40;
@@ -629,27 +667,26 @@ function classifyGesture(points) {
   return {
     gesture: chord,
     confidence,
-    states
+    states,
+    extendedCount,
+    fingerInfo: { idx, mid, rng, pnk, thb }
   };
 }
 
-// Fast low-latency temporal confirmation (< 50-80ms target)
+// Fast low-latency temporal confirmation (< 40ms target)
 function processGesture(points) {
   if (autoPlayEnabled) return;
 
   const now = performance.now();
 
-  // If the hand disappears, release the current chord quickly,
-  // but do not react to a single dropped MediaPipe frame.
+  // If the hand disappears, release the current chord quickly
   if (!points) {
     noHandFrames++;
 
     if (noHandFrames >= 3) {
       if (currentChord !== "MUTE") {
-        console.info(
-          `[GESTURE] Hand lost -> release at ${now.toFixed(1)}ms`
-        );
-        audio.release(0.9);
+        console.info(`[GESTURE] Hand lost -> release at ${now.toFixed(1)}ms`);
+        audio.release(0.8);
         updateChord("MUTE", "gesture");
       }
 
@@ -677,8 +714,6 @@ function processGesture(points) {
       ? "NO VALID GESTURE"
       : (CHORDS[gesture]?.gesture || "UNKNOWN");
 
-  // Invalid/ambiguous frames should not immediately change the
-  // musical state. This prevents flicker while fingers are moving.
   if (gesture === "MUTE") {
     candidateFrames = 0;
     el.gesture.textContent = rawGesture;
@@ -686,72 +721,93 @@ function processGesture(points) {
     return;
   }
 
-  // New candidate: remember it immediately.
+  // New candidate gesture
   if (gesture !== candidateGesture) {
     candidateGesture = gesture;
     candidateStartTime = now;
     candidateFrames = 1;
-
     updateDebug();
     return;
   }
 
   candidateFrames++;
-
   const heldMs = now - candidateStartTime;
 
-  // Normal confirmation:
-  // 2 frames OR ~35ms of stable classification.
-  // This is deliberately much shorter than a traditional debounce.
-  const isConfirmed =
-    candidateFrames >= 3 ||
-    heldMs >= 55 ||
-    confidence >= 0.94;
+  // Confirm gesture rapidly (2 frames or 35ms)
+  const isConfirmed = candidateFrames >= 2 || heldMs >= 35 || confidence >= 0.94;
 
-  if (
-    isConfirmed &&
-    gesture !== currentChord
-  ) {
+  if (isConfirmed && gesture !== currentChord) {
     stableGesture = gesture;
-
-    console.info(
-      `[GESTURE CONFIRMED] ${gesture} ` +
-      `in ${heldMs.toFixed(1)}ms ` +
-      `(conf=${confidence.toFixed(2)})`
-    );
-
-    // Trigger the Web Audio engine immediately with full amplified intensity.
-    updateChord(
-      gesture,
-      "gesture",
-      0.85,
-      12
-    );
+    console.info(`[GESTURE CONFIRMED] ${gesture} in ${heldMs.toFixed(1)}ms`);
+    // Full amplified playback
+    updateChord(gesture, "gesture", 0.95, 12);
   }
 
-  el.gesture.textContent =
-    CHORDS[gesture]?.gesture || rawGesture;
-
+  el.gesture.textContent = CHORDS[gesture]?.gesture || rawGesture;
   updateDebug();
 }
 
 const EDGES = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
-function drawHand(points) {
+function drawHand(points, classification) {
   resetCanvas();
   context.lineWidth = 2.5;
-  context.strokeStyle = "#a58aff";
-  context.fillStyle = "#8cc2ff";
+  context.strokeStyle = "rgba(165, 138, 255, 0.75)";
+
   EDGES.forEach(([a, b]) => {
     context.beginPath();
     context.moveTo(points[a].x * el.canvas.width, points[a].y * el.canvas.height);
     context.lineTo(points[b].x * el.canvas.width, points[b].y * el.canvas.height);
     context.stroke();
   });
-  points.forEach((point) => {
+
+  points.forEach((point, i) => {
+    const isTip = i === 4 || i === 8 || i === 12 || i === 16 || i === 20;
+    let color = "#8cc2ff";
+    let radius = 3.5;
+
+    if (classification?.fingerInfo) {
+      const { idx, mid, rng, pnk, thb } = classification.fingerInfo;
+      if (i === 8) color = idx.extended ? "#00ffcc" : "#ff4d6d";
+      if (i === 12) color = mid.extended ? "#00ffcc" : "#ff4d6d";
+      if (i === 16) color = rng.extended ? "#00ffcc" : "#ff4d6d";
+      if (i === 20) color = pnk.extended ? "#00ffcc" : "#ff4d6d";
+      if (i === 4) color = thb.extended ? "#00ffcc" : "#ff4d6d";
+      if (isTip) radius = 6.0;
+    }
+
     context.beginPath();
-    context.arc(point.x * el.canvas.width, point.y * el.canvas.height, 3.5, 0, Math.PI * 2);
+    context.arc(point.x * el.canvas.width, point.y * el.canvas.height, radius, 0, Math.PI * 2);
+    context.fillStyle = color;
     context.fill();
+
+    if (isTip) {
+      context.lineWidth = 1.5;
+      context.strokeStyle = "#ffffff";
+      context.stroke();
+    }
   });
+
+  // On-canvas live HUD badge
+  if (classification && classification.gesture && classification.gesture !== "MUTE") {
+    const chordData = CHORDS[classification.gesture];
+    const name = chordData?.displayName || chordData?.name || classification.gesture;
+    const gestureName = chordData?.gesture || "";
+    const count = classification.extendedCount ?? "";
+
+    context.save();
+    context.fillStyle = "rgba(15, 17, 26, 0.85)";
+    context.strokeStyle = "rgba(165, 138, 255, 0.4)";
+    context.lineWidth = 1;
+    context.beginPath();
+    context.roundRect(14, el.canvas.height - 44, 250, 32, 8);
+    context.fill();
+    context.stroke();
+
+    context.fillStyle = "#00ffcc";
+    context.font = "bold 13px 'DM Mono', monospace, sans-serif";
+    context.fillText(`${gestureName} [${count}] → ${name}`, 24, el.canvas.height - 23);
+    context.restore();
+  }
 }
 
 async function initializeTracker() {
@@ -813,8 +869,8 @@ function detectFrame() {
       const result = handLandmarker.detectForVideo(el.video, timestamp);
       const points = result.landmarks?.[0];
       if (points) {
-        drawHand(points);
         processGesture(points);
+        drawHand(points, lastClassification);
         setTone(el.cameraStatus, "active", "HAND DETECTED");
         setTracking("active", "Hand detected");
       } else {
