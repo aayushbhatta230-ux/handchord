@@ -81,56 +81,19 @@
           <div class="song-mode">
             <div class="song-selector-wrap">
               <select id="song-select" class="song-select" aria-label="Select song">
-                <option value="iris">Iris — Goo Goo Dolls</option>
-                <option value="perfect">Perfect — Ed Sheeran</option>
-                <option value="nightChanges">Night Changes — One Direction</option>
                 <option value="sadhana">Sadhana — John Chamling Rai</option>
                 <option value="koChaRa">Ko Cha Ra — John Chamling Rai</option>
                 <option value="mayaLe">Maya Le — John Chamling Rai</option>
-                <option value="hawaLe">Hawa Le — John Chamling Rai</option>
-                <option value="timiBahek">Timi Bahek — John Chamling Rai</option>
+                <option value="hawaJastai">Hawa Jastai — John Chamling Rai</option>
+                <option value="farkannaHola">Farkanna Hola — John Chamling Rai</option>
+                <option value="perfect">Perfect — Ed Sheeran</option>
+                <option value="nightChanges">Night Changes — One Direction</option>
+                <option value="iris">Iris — Goo Goo Dolls</option>
               </select>
             </div>
             <button id="auto-play" type="button" aria-pressed="false">AUTO PLAY</button>
           </div>
-          <div class="piano" role="group" aria-label="Chord keys">
-            <button class="piano-key" type="button" data-chord="G" aria-label="Play Gmaj7">
-              <span class="key-emoji">✋</span>
-              <strong>G</strong>
-              <span>Gmaj7</span>
-              <small>OPEN PALM</small>
-            </button>
-            <button class="piano-key" type="button" data-chord="D" aria-label="Play Dadd9">
-              <span class="key-emoji">✌️</span>
-              <strong>D</strong>
-              <span>Dadd9</span>
-              <small>PEACE</small>
-            </button>
-            <button class="piano-key" type="button" data-chord="Em" aria-label="Play Em7">
-              <span class="key-emoji">✊</span>
-              <strong>Em</strong>
-              <span>Em7</span>
-              <small>FIST</small>
-            </button>
-            <button class="piano-key" type="button" data-chord="C" aria-label="Play Cadd9">
-              <span class="key-emoji">☝️</span>
-              <strong>C</strong>
-              <span>Cadd9</span>
-              <small>POINT</small>
-            </button>
-            <button class="piano-key" type="button" data-chord="Bm" aria-label="Play Bm7/A">
-              <span class="key-emoji">🤟</span>
-              <strong>Bm</strong>
-              <span>Bm7/A</span>
-              <small>3 FINGERS</small>
-            </button>
-            <button class="piano-key" type="button" data-chord="A" aria-label="Play Aadd9">
-              <span class="key-emoji">🤙</span>
-              <strong>A</strong>
-              <span>Aadd9</span>
-              <small>THUMB+INDEX</small>
-            </button>
-          </div>
+          <div class="piano" id="piano" role="group" aria-label="Chord keys"></div>
           <div class="progression" id="progression" aria-label="Iris verse progression">
             <span data-chord="D"><i>✌️</i> Dadd9</span><i>→</i>
             <span data-chord="Em"><i>✊</i> Em7</span><i>→</i>

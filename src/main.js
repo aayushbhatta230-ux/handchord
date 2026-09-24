@@ -6,97 +6,242 @@ const WASM_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/w
 const CAMERA = Object.freeze({ IDLE: "IDLE", STARTING: "STARTING", LIVE: "LIVE", ERROR: "ERROR", STOPPED: "STOPPED" });
 const DEBUG_ENABLED = new URLSearchParams(window.location.search).has("debug");
 
-const CHORDS = {
+const ALL_CHORDS = {
   G: {
-    name: "Gmaj7",
-    displayName: "Gmaj7",
-    gesture: "OPEN HAND",
-    // Bass: G2, D3; Upper: G3, B3, D4, F#4 (Common tones with Em7 and Bm7/A)
-    notes: [98.00, 146.83, 196.00, 246.94, 293.66, 369.99]
-  },
-  D: {
-    name: "Dadd9",
-    displayName: "Dadd9",
-    gesture: "PEACE",
-    // Bass: D2, D3; Upper: F#3, A3, D4, E4 (Voice leads smoothly to Em7)
-    notes: [73.42, 146.83, 185.00, 220.00, 293.66, 329.63]
+    name: "G",
+    displayName: "Gmaj",
+    notes: [98.00, 146.83, 196.00, 246.94, 293.66, 392.00]
   },
   Em: {
-    name: "Em7",
+    name: "Em",
     displayName: "Em7",
-    gesture: "FIST",
-    // Bass: E2, E3; Upper: G3, B3, D4, E4 (D4 and E4 sustained common tones from Dadd9)
-    notes: [82.41, 164.81, 196.00, 246.94, 293.66, 329.63]
+    notes: [82.41, 123.47, 164.81, 196.00, 246.94, 329.63]
   },
   C: {
-    name: "Cadd9",
+    name: "C",
     displayName: "Cadd9",
-    gesture: "POINT",
-    // Bass: C2, G2; Upper: G3, C4, D4, E4
-    notes: [65.41, 98.00, 196.00, 261.63, 293.66, 329.63]
+    notes: [130.81, 164.81, 196.00, 261.63, 293.66, 329.63]
+  },
+  D: {
+    name: "D",
+    displayName: "Dadd9",
+    notes: [146.83, 220.00, 293.66, 369.99, 440.00, 587.33]
+  },
+  Am: {
+    name: "Am",
+    displayName: "Am7",
+    notes: [110.00, 164.81, 220.00, 261.63, 329.63, 440.00]
+  },
+  F: {
+    name: "F",
+    displayName: "Fmaj7",
+    notes: [87.31, 130.81, 174.61, 220.00, 261.63, 349.23]
+  },
+  Dm: {
+    name: "Dm",
+    displayName: "Dm7",
+    notes: [146.83, 220.00, 293.66, 349.23, 440.00, 523.25]
   },
   Bm: {
-    name: "Bm7/A",
-    displayName: "Bm7/A",
-    gesture: "THREE FINGERS",
-    // Bass: B1, A2; Upper: A3, B3, D4, F#4 (Common tones B3, D4, F#4 with Gmaj7)
-    notes: [61.74, 110.00, 220.00, 246.94, 293.66, 369.99]
+    name: "Bm",
+    displayName: "Bm7",
+    notes: [123.47, 185.00, 246.94, 293.66, 369.99, 493.88]
   },
   A: {
-    name: "Aadd9",
+    name: "A",
     displayName: "Aadd9",
-    gesture: "THUMB + INDEX",
-    // Bass: A1, A2; Upper: A3, B3, C#4, E4 (Voice leads seamlessly back to Gmaj7)
-    notes: [55.00, 110.00, 220.00, 246.94, 277.18, 329.63]
+    notes: [110.00, 164.81, 220.00, 277.18, 329.63, 440.00]
   },
   MUTE: {
     name: "MUTE",
     displayName: "MUTE",
-    gesture: "NO VALID GESTURE",
     notes: []
   }
 };
+const CHORDS = ALL_CHORDS;
 
 const SONGS = {
-  iris: {
-    title: "Iris",
-    artist: "Goo Goo Dolls",
-    tempo: 76,
+  sadhana: {
+    title: "Sadhana",
+    artist: "John Chamling Rai",
+    tempo: 72,
+    chordSlots: [
+      { key: "C",  name: "Cadd9", gesture: "OPEN PALM", emoji: "✋" },
+      { key: "G",  name: "Gmaj",  gesture: "PEACE",     emoji: "✌️" },
+      { key: "F",  name: "Fmaj7", gesture: "FIST",      emoji: "✊" },
+      { key: "Em", name: "Em7",   gesture: "POINT",     emoji: "☝️" },
+      { key: "Dm", name: "Dm7",   gesture: "3 FINGERS", emoji: "🤟" },
+      { key: "Am", name: "Am7",   gesture: "THUMB+INDEX", emoji: "🤙" }
+    ],
     progression: [
-      { chord: "D", label: "Dadd9", emoji: "✌️" },
-      { chord: "Em", label: "Em7", emoji: "✊" },
-      { chord: "G", label: "Gmaj7", emoji: "✋" },
-      { chord: "Bm", label: "Bm7", emoji: "🤟" },
-      { chord: "A", label: "Aadd9", emoji: "🤙" },
-      { chord: "G", label: "Gmaj7", emoji: "✋" }
+      { chord: "C",  label: "Cadd9", emoji: "✋" },
+      { chord: "G",  label: "Gmaj",  emoji: "✌️" },
+      { chord: "F",  label: "Fmaj7", emoji: "✊" },
+      { chord: "G",  label: "Gmaj",  emoji: "✌️" },
+      { chord: "C",  label: "Cadd9", emoji: "✋" },
+      { chord: "Em", label: "Em7",   emoji: "☝️" },
+      { chord: "Dm", label: "Dm7",   emoji: "🤟" },
+      { chord: "G",  label: "Gmaj",  emoji: "✌️" }
+    ],
+    sections: {
+      chorus: [
+        { chord: "C",  duration: 3400, intensity: 0.72, rollSpeed: 18, phrase: "Tetikai choda na kesha lai", breath: 250 },
+        { chord: "G",  duration: 3400, intensity: 0.70, rollSpeed: 18, phrase: "Udaauna deu haawaa lai", breath: 250 },
+        { chord: "F",  duration: 3400, intensity: 0.74, rollSpeed: 18, phrase: "Dubchu hola timraa aakhaa mai", breath: 250 },
+        { chord: "G",  duration: 3600, intensity: 0.72, rollSpeed: 18, phrase: "Dubi rahana cha tyehi malai", breath: 350 }
+      ],
+      verse: [
+        { chord: "C",  duration: 3200, intensity: 0.65, rollSpeed: 18, phrase: "Ma, ma maayaa maardina", breath: 250 },
+        { chord: "Em", duration: 3200, intensity: 0.62, rollSpeed: 18, phrase: "Timi lai chaaddina", breath: 250 },
+        { chord: "Dm", duration: 3400, intensity: 0.64, rollSpeed: 18, phrase: "Timi mana ma chau mero", breath: 250 },
+        { chord: "G",  duration: 3800, intensity: 0.68, rollSpeed: 20, phrase: "Samjhanaa hau mero, kaile birsinna", breath: 350 }
+      ],
+      bridge: [
+        { chord: "F",  duration: 3200, intensity: 0.75, rollSpeed: 16, phrase: "Chaayaa hau, kaile nachutne", breath: 250 },
+        { chord: "C",  duration: 3200, intensity: 0.72, rollSpeed: 16, phrase: "Sapana hau, har raat aaune", breath: 250 },
+        { chord: "Dm", duration: 3400, intensity: 0.74, rollSpeed: 18, phrase: "Eh mana yo kaile namarne", breath: 250 },
+        { chord: "G",  duration: 3400, intensity: 0.76, rollSpeed: 18, phrase: "Timlai samjhi, timlai samjhi", breath: 300 },
+        { chord: "Am", duration: 4800, intensity: 0.80, rollSpeed: 20, phrase: "Sadhana bani basechau...", breath: 600 }
+      ]
+    }
+  },
+  koChaRa: {
+    title: "Ko Cha Ra",
+    artist: "John Chamling Rai",
+    tempo: 76,
+    chordSlots: [
+      { key: "C",  name: "Cadd9", gesture: "OPEN PALM", emoji: "✋" },
+      { key: "Em", name: "Em7",   gesture: "PEACE",     emoji: "✌️" },
+      { key: "F",  name: "Fmaj7", gesture: "FIST",      emoji: "✊" },
+      { key: "G",  name: "Gmaj",  gesture: "POINT",     emoji: "☝️" },
+      { key: "Am", name: "Am7",   gesture: "3 FINGERS", emoji: "🤟" },
+      { key: "Dm", name: "Dm7",   gesture: "THUMB+INDEX", emoji: "🤙" }
+    ],
+    progression: [
+      { chord: "C",  label: "Cadd9", emoji: "✋" },
+      { chord: "Em", label: "Em7",   emoji: "✌️" },
+      { chord: "F",  label: "Fmaj7", emoji: "✊" },
+      { chord: "G",  label: "Gmaj",  emoji: "☝️" },
+      { chord: "Am", label: "Am7",   emoji: "🤟" },
+      { chord: "G",  label: "Gmaj",  emoji: "☝️" },
+      { chord: "F",  label: "Fmaj7", emoji: "✊" },
+      { chord: "G",  label: "Gmaj",  emoji: "☝️" }
     ],
     sections: {
       verse: [
-        { chord: "D",  duration: 3800, intensity: 0.52, rollSpeed: 20, phrase: "And I'd give up forever to touch you", breath: 350 },
-        { chord: "Em", duration: 3800, intensity: 0.50, rollSpeed: 20, phrase: "'Cause I know that you feel me somehow", breath: 350 },
-        { chord: "G",  duration: 4800, intensity: 0.54, rollSpeed: 24, phrase: "You're the closest to heaven that I'll ever be", breath: 500 },
-        { chord: "Bm", duration: 3800, intensity: 0.48, rollSpeed: 20, phrase: "And I don't want to go home right now", breath: 350 },
-        { chord: "A",  duration: 3800, intensity: 0.50, rollSpeed: 20, phrase: "And all I can taste is this moment", breath: 350 },
-        { chord: "G",  duration: 5400, intensity: 0.56, rollSpeed: 24, phrase: "And all I can breathe is your life", breath: 700 }
+        { chord: "C",  duration: 3400, intensity: 0.68, rollSpeed: 18, phrase: "Ko cha ra timilai aaja bujhidine", breath: 250 },
+        { chord: "Em", duration: 3400, intensity: 0.65, rollSpeed: 18, phrase: "Timra manka kura sabai sodhidine", breath: 250 },
+        { chord: "F",  duration: 3400, intensity: 0.68, rollSpeed: 18, phrase: "Aankhako aashu puchi dine", breath: 250 },
+        { chord: "G",  duration: 3600, intensity: 0.70, rollSpeed: 18, phrase: "Sadhai timrai saath dine", breath: 300 }
       ],
       chorus: [
-        { chord: "Bm", duration: 2800, intensity: 0.74, rollSpeed: 16, phrase: "And I don't want the world to see me", breath: 200 },
-        { chord: "A",  duration: 2800, intensity: 0.72, rollSpeed: 16, phrase: "", breath: 200 },
-        { chord: "G",  duration: 4200, intensity: 0.78, rollSpeed: 20, phrase: "", breath: 400 },
-        { chord: "Bm", duration: 2800, intensity: 0.75, rollSpeed: 16, phrase: "'Cause I don't think that they'd understand", breath: 200 },
-        { chord: "A",  duration: 2800, intensity: 0.73, rollSpeed: 16, phrase: "", breath: 200 },
-        { chord: "G",  duration: 4200, intensity: 0.80, rollSpeed: 20, phrase: "", breath: 400 },
-        { chord: "Bm", duration: 2800, intensity: 0.76, rollSpeed: 16, phrase: "When everything's made to be broken", breath: 200 },
-        { chord: "A",  duration: 2800, intensity: 0.74, rollSpeed: 16, phrase: "", breath: 200 },
-        { chord: "G",  duration: 4200, intensity: 0.82, rollSpeed: 20, phrase: "", breath: 400 },
-        { chord: "Bm", duration: 2900, intensity: 0.78, rollSpeed: 16, phrase: "I just want you to know who I am", breath: 250 },
-        { chord: "A",  duration: 2900, intensity: 0.75, rollSpeed: 16, phrase: "", breath: 250 },
-        { chord: "G",  duration: 5600, intensity: 0.84, rollSpeed: 22, phrase: "(Chorus bloom & fade)", breath: 800 }
+        { chord: "Am", duration: 3200, intensity: 0.76, rollSpeed: 16, phrase: "Pida huncha malai timilai dukhda", breath: 250 },
+        { chord: "G",  duration: 3200, intensity: 0.74, rollSpeed: 16, phrase: "Khusi hunchu timro muskan dekhda", breath: 250 },
+        { chord: "F",  duration: 3400, intensity: 0.78, rollSpeed: 18, phrase: "Timilai nai ta rojeko chu", breath: 250 },
+        { chord: "G",  duration: 4400, intensity: 0.80, rollSpeed: 20, phrase: "Yo dhadkan le sadaiv bhari", breath: 600 }
+      ]
+    }
+  },
+  mayaLe: {
+    title: "Maya Le",
+    artist: "John Chamling Rai",
+    tempo: 70,
+    chordSlots: [
+      { key: "C",  name: "Cadd9", gesture: "OPEN PALM", emoji: "✋" },
+      { key: "F",  name: "Fmaj7", gesture: "PEACE",     emoji: "✌️" },
+      { key: "Am", name: "Am7",   gesture: "FIST",      emoji: "✊" },
+      { key: "G",  name: "Gmaj",  gesture: "POINT",     emoji: "☝️" },
+      { key: "Em", name: "Em7",   gesture: "3 FINGERS", emoji: "🤟" },
+      { key: "Dm", name: "Dm7",   gesture: "THUMB+INDEX", emoji: "🤙" }
+    ],
+    progression: [
+      { chord: "C",  label: "Cadd9", emoji: "✋" },
+      { chord: "F",  label: "Fmaj7", emoji: "✌️" },
+      { chord: "C",  label: "Cadd9", emoji: "✋" },
+      { chord: "Am", label: "Am7",   emoji: "✊" },
+      { chord: "G",  label: "Gmaj",  emoji: "☝️" },
+      { chord: "F",  label: "Fmaj7", emoji: "✌️" },
+      { chord: "C",  label: "Cadd9", emoji: "✋" },
+      { chord: "G",  label: "Gmaj",  emoji: "☝️" }
+    ],
+    sections: {
+      verse: [
+        { chord: "C",  duration: 3400, intensity: 0.65, rollSpeed: 18, phrase: "Maya ley bolauda, maya ley bolnu", breath: 250 },
+        { chord: "F",  duration: 3400, intensity: 0.68, rollSpeed: 18, phrase: "Jati tadha gaye pani, malai nai khojnu", breath: 250 },
+        { chord: "C",  duration: 3400, intensity: 0.65, rollSpeed: 18, phrase: "Timi bahek kohi chaina yo mero mutu ma", breath: 250 },
+        { chord: "Am", duration: 3400, intensity: 0.68, rollSpeed: 18, phrase: "Sadhai timilai nai rakhne chu aashma", breath: 250 },
+        { chord: "G",  duration: 3600, intensity: 0.72, rollSpeed: 18, phrase: "Maya launa jani sakechu, mana bhitra dekhinai", breath: 300 }
       ],
-      outro: [
-        { chord: "D",  duration: 3800, intensity: 0.46, rollSpeed: 22, phrase: "I just want you to know who I am...", breath: 400 },
-        { chord: "Em", duration: 3800, intensity: 0.44, rollSpeed: 22, phrase: "", breath: 400 },
-        { chord: "G",  duration: 6800, intensity: 0.48, rollSpeed: 26, phrase: "(Final sustained chord)", breath: 1000 }
+      chorus: [
+        { chord: "F",  duration: 3200, intensity: 0.76, rollSpeed: 16, phrase: "Ma ni sadhai timilai rochhu", breath: 250 },
+        { chord: "C",  duration: 3200, intensity: 0.74, rollSpeed: 16, phrase: "Mero antim saas sammai", breath: 250 },
+        { chord: "G",  duration: 4400, intensity: 0.78, rollSpeed: 20, phrase: "Maya ley baandhi deu malai...", breath: 600 }
+      ]
+    }
+  },
+  hawaJastai: {
+    title: "Hawa Jastai",
+    artist: "John Chamling Rai",
+    tempo: 74,
+    chordSlots: [
+      { key: "G",  name: "Gmaj",  gesture: "OPEN PALM", emoji: "✋" },
+      { key: "Bm", name: "Bm7",   gesture: "PEACE",     emoji: "✌️" },
+      { key: "C",  name: "Cadd9", gesture: "FIST",      emoji: "✊" },
+      { key: "D",  name: "Dadd9", gesture: "POINT",     emoji: "☝️" },
+      { key: "Em", name: "Em7",   gesture: "3 FINGERS", emoji: "🤟" },
+      { key: "Am", name: "Am7",   gesture: "THUMB+INDEX", emoji: "🤙" }
+    ],
+    progression: [
+      { chord: "G",  label: "Gmaj",  emoji: "✋" },
+      { chord: "Bm", label: "Bm7",   emoji: "✌️" },
+      { chord: "C",  label: "Cadd9", emoji: "✊" },
+      { chord: "D",  label: "Dadd9", emoji: "☝️" },
+      { chord: "Em", label: "Em7",   emoji: "🤟" },
+      { chord: "Bm", label: "Bm7",   emoji: "✌️" },
+      { chord: "C",  label: "Cadd9", emoji: "✊" },
+      { chord: "D",  label: "Dadd9", emoji: "☝️" }
+    ],
+    sections: {
+      verse: [
+        { chord: "G",  duration: 3400, intensity: 0.65, rollSpeed: 18, phrase: "Hawa jastai bagirahechu", breath: 250 },
+        { chord: "Bm", duration: 3400, intensity: 0.62, rollSpeed: 18, phrase: "Timrai aashpas ma jahile", breath: 250 },
+        { chord: "C",  duration: 3400, intensity: 0.66, rollSpeed: 18, phrase: "Sheetal paban bani chunchu timilai", breath: 250 },
+        { chord: "D",  duration: 3600, intensity: 0.68, rollSpeed: 18, phrase: "Timle malai na-dekhe pani", breath: 300 }
+      ],
+      chorus: [
+        { chord: "Em", duration: 3200, intensity: 0.76, rollSpeed: 16, phrase: "Mutu nadukhai rakha mero", breath: 250 },
+        { chord: "Bm", duration: 3200, intensity: 0.74, rollSpeed: 16, phrase: "Sadhai timrai saath chu ma", breath: 250 },
+        { chord: "C",  duration: 3400, intensity: 0.78, rollSpeed: 18, phrase: "Aakash jastai asim maya", breath: 250 },
+        { chord: "D",  duration: 4400, intensity: 0.80, rollSpeed: 20, phrase: "Timilai nai sumpeko chu", breath: 600 }
+      ]
+    }
+  },
+  farkannaHola: {
+    title: "Farkanna Hola",
+    artist: "John Chamling Rai",
+    tempo: 70,
+    chordSlots: [
+      { key: "C",  name: "Cadd9", gesture: "OPEN PALM", emoji: "✋" },
+      { key: "Am", name: "Am7",   gesture: "PEACE",     emoji: "✌️" },
+      { key: "Em", name: "Em7",   gesture: "FIST",      emoji: "✊" },
+      { key: "F",  name: "Fmaj7", gesture: "POINT",     emoji: "☝️" },
+      { key: "G",  name: "Gmaj",  gesture: "3 FINGERS", emoji: "🤟" },
+      { key: "Dm", name: "Dm7",   gesture: "THUMB+INDEX", emoji: "🤙" }
+    ],
+    progression: [
+      { chord: "C",  label: "Cadd9", emoji: "✋" },
+      { chord: "Am", label: "Am7",   emoji: "✌️" },
+      { chord: "Em", label: "Em7",   emoji: "✊" },
+      { chord: "F",  label: "Fmaj7", emoji: "☝️" },
+      { chord: "G",  label: "Gmaj",  emoji: "🤟" }
+    ],
+    sections: {
+      verse: [
+        { chord: "C",  duration: 3400, intensity: 0.65, rollSpeed: 18, phrase: "Farkanna hola aba ma", breath: 250 },
+        { chord: "Am", duration: 3400, intensity: 0.62, rollSpeed: 18, phrase: "Gaye pachi utai tira", breath: 250 },
+        { chord: "Em", duration: 3400, intensity: 0.64, rollSpeed: 18, phrase: "Samjanchu la dherai nai", breath: 250 },
+        { chord: "F",  duration: 3400, intensity: 0.68, rollSpeed: 18, phrase: "Kahile kahi samjhi didaa", breath: 250 },
+        { chord: "G",  duration: 4200, intensity: 0.72, rollSpeed: 20, phrase: "Jindagii bekamfuse, kahile kaa...", breath: 500 }
       ]
     }
   },
@@ -104,32 +249,36 @@ const SONGS = {
     title: "Perfect",
     artist: "Ed Sheeran",
     tempo: 63,
+    chordSlots: [
+      { key: "G",  name: "Gmaj",  gesture: "OPEN PALM", emoji: "✋" },
+      { key: "Em", name: "Em7",   gesture: "PEACE",     emoji: "✌️" },
+      { key: "C",  name: "Cadd9", gesture: "FIST",      emoji: "✊" },
+      { key: "D",  name: "Dadd9", gesture: "POINT",     emoji: "☝️" },
+      { key: "Am", name: "Am7",   gesture: "3 FINGERS", emoji: "🤟" },
+      { key: "Bm", name: "Bm7",   gesture: "THUMB+INDEX", emoji: "🤙" }
+    ],
     progression: [
-      { chord: "G",  label: "Gmaj7", emoji: "✋" },
-      { chord: "Em", label: "Em7",   emoji: "✊" },
-      { chord: "C",  label: "Cadd9", emoji: "☝️" },
-      { chord: "D",  label: "Dadd9", emoji: "✌️" }
+      { chord: "G",  label: "Gmaj",  emoji: "✋" },
+      { chord: "Em", label: "Em7",   emoji: "✌️" },
+      { chord: "C",  label: "Cadd9", emoji: "✊" },
+      { chord: "D",  label: "Dadd9", emoji: "☝️" },
+      { chord: "Em", label: "Em7",   emoji: "✌️" },
+      { chord: "C",  label: "Cadd9", emoji: "✊" },
+      { chord: "G",  label: "Gmaj",  emoji: "✋" },
+      { chord: "D",  label: "Dadd9", emoji: "☝️" }
     ],
     sections: {
       verse: [
-        { chord: "G",  duration: 3600, intensity: 0.58, rollSpeed: 18, phrase: "I found a love for me", breath: 300 },
-        { chord: "Em", duration: 3600, intensity: 0.55, rollSpeed: 18, phrase: "Darling just dive right in and follow my lead", breath: 300 },
-        { chord: "C",  duration: 3600, intensity: 0.56, rollSpeed: 18, phrase: "Well I found a girl, beautiful and sweet", breath: 300 },
-        { chord: "D",  duration: 4000, intensity: 0.58, rollSpeed: 18, phrase: "I never knew you were the someone waiting for me", breath: 400 },
-        { chord: "G",  duration: 3600, intensity: 0.60, rollSpeed: 18, phrase: "'Cause we were just kids when we fell in love", breath: 300 },
-        { chord: "Em", duration: 3600, intensity: 0.57, rollSpeed: 18, phrase: "Not knowing what it was", breath: 300 },
-        { chord: "C",  duration: 3600, intensity: 0.62, rollSpeed: 18, phrase: "I will not give you up this time", breath: 300 },
-        { chord: "D",  duration: 4200, intensity: 0.64, rollSpeed: 18, phrase: "Darling just kiss me slow, your heart is all I own", breath: 500 }
+        { chord: "G",  duration: 3500, intensity: 0.65, rollSpeed: 18, phrase: "I found a love for me", breath: 250 },
+        { chord: "Em", duration: 3500, intensity: 0.62, rollSpeed: 18, phrase: "Darling just dive right in and follow my lead", breath: 250 },
+        { chord: "C",  duration: 3500, intensity: 0.64, rollSpeed: 18, phrase: "Well I found a girl, beautiful and sweet", breath: 250 },
+        { chord: "D",  duration: 3800, intensity: 0.68, rollSpeed: 18, phrase: "I never knew you were the someone waiting for me", breath: 350 }
       ],
       chorus: [
-        { chord: "Em", duration: 3400, intensity: 0.78, rollSpeed: 16, phrase: "Baby, I'm dancing in the dark", breath: 250 },
-        { chord: "C",  duration: 3400, intensity: 0.76, rollSpeed: 16, phrase: "With you between my arms", breath: 250 },
-        { chord: "G",  duration: 3400, intensity: 0.82, rollSpeed: 18, phrase: "Barefoot on the grass", breath: 250 },
-        { chord: "D",  duration: 3400, intensity: 0.80, rollSpeed: 18, phrase: "Listening to our favorite song", breath: 300 },
-        { chord: "Em", duration: 3400, intensity: 0.82, rollSpeed: 16, phrase: "When you said you looked a mess", breath: 250 },
-        { chord: "C",  duration: 3400, intensity: 0.80, rollSpeed: 16, phrase: "I whispered underneath my breath", breath: 250 },
-        { chord: "G",  duration: 3800, intensity: 0.84, rollSpeed: 18, phrase: "You heard it, darling you look perfect tonight", breath: 400 },
-        { chord: "D",  duration: 5400, intensity: 0.82, rollSpeed: 20, phrase: "(Gentle acoustic strum fade)", breath: 800 }
+        { chord: "Em", duration: 3300, intensity: 0.76, rollSpeed: 16, phrase: "Baby, I'm dancing in the dark", breath: 250 },
+        { chord: "C",  duration: 3300, intensity: 0.74, rollSpeed: 16, phrase: "With you between my arms", breath: 250 },
+        { chord: "G",  duration: 3300, intensity: 0.78, rollSpeed: 18, phrase: "Barefoot on the grass", breath: 250 },
+        { chord: "D",  duration: 4400, intensity: 0.76, rollSpeed: 18, phrase: "Listening to our favorite song", breath: 500 }
       ]
     }
   },
@@ -137,165 +286,81 @@ const SONGS = {
     title: "Night Changes",
     artist: "One Direction",
     tempo: 60,
+    chordSlots: [
+      { key: "G",  name: "Gmaj",  gesture: "OPEN PALM", emoji: "✋" },
+      { key: "Em", name: "Em7",   gesture: "PEACE",     emoji: "✌️" },
+      { key: "Bm", name: "Bm7",   gesture: "FIST",      emoji: "✊" },
+      { key: "D",  name: "Dadd9", gesture: "POINT",     emoji: "☝️" },
+      { key: "C",  name: "Cadd9", gesture: "3 FINGERS", emoji: "🤟" },
+      { key: "Am", name: "Am7",   gesture: "THUMB+INDEX", emoji: "🤙" }
+    ],
     progression: [
-      { chord: "G",  label: "Gmaj7", emoji: "✋" },
-      { chord: "Em", label: "Em7",   emoji: "✊" },
-      { chord: "Bm", label: "Bm7",   emoji: "🤟" },
-      { chord: "D",  label: "Dadd9", emoji: "✌️" },
-      { chord: "C",  label: "Cadd9", emoji: "☝️" },
-      { chord: "D",  label: "Dadd9", emoji: "✌️" }
+      { chord: "G",  label: "Gmaj",  emoji: "✋" },
+      { chord: "Em", label: "Em7",   emoji: "✌️" },
+      { chord: "Bm", label: "Bm7",   emoji: "✊" },
+      { chord: "D",  label: "Dadd9", emoji: "☝️" },
+      { chord: "C",  label: "Cadd9", emoji: "🤟" },
+      { chord: "D",  label: "Dadd9", emoji: "☝️" },
+      { chord: "G",  label: "Gmaj",  emoji: "✋" },
+      { chord: "Em", label: "Em7",   emoji: "✌️" }
     ],
     sections: {
       verse: [
-        { chord: "G",  duration: 3500, intensity: 0.56, rollSpeed: 18, phrase: "Goin' out tonight, changes into something red", breath: 300 },
-        { chord: "Em", duration: 3500, intensity: 0.54, rollSpeed: 18, phrase: "Her mother doesn't like that kind of dress", breath: 300 },
-        { chord: "Bm", duration: 3500, intensity: 0.55, rollSpeed: 18, phrase: "Everything she never had she's showin' off", breath: 300 },
-        { chord: "D",  duration: 3800, intensity: 0.58, rollSpeed: 18, phrase: "Drivin' too fast, moon is breakin' through her hair", breath: 400 }
+        { chord: "G",  duration: 3400, intensity: 0.65, rollSpeed: 18, phrase: "Goin' out tonight, changes into something red", breath: 250 },
+        { chord: "Em", duration: 3400, intensity: 0.62, rollSpeed: 18, phrase: "Her mother doesn't like that kind of dress", breath: 250 },
+        { chord: "Bm", duration: 3400, intensity: 0.64, rollSpeed: 18, phrase: "Everything she never had she's showin' off", breath: 250 },
+        { chord: "D",  duration: 3600, intensity: 0.68, rollSpeed: 18, phrase: "Drivin' too fast, moon is breakin' through her hair", breath: 300 }
       ],
       chorus: [
-        { chord: "C",  duration: 3200, intensity: 0.74, rollSpeed: 16, phrase: "Does it ever drive you crazy", breath: 250 },
-        { chord: "D",  duration: 3200, intensity: 0.76, rollSpeed: 16, phrase: "Just how fast the night changes?", breath: 250 },
-        { chord: "G",  duration: 3400, intensity: 0.80, rollSpeed: 18, phrase: "Everything that you've ever dreamed of", breath: 250 },
-        { chord: "Em", duration: 3400, intensity: 0.78, rollSpeed: 18, phrase: "Disappearing when you wake up", breath: 300 },
-        { chord: "C",  duration: 3200, intensity: 0.76, rollSpeed: 16, phrase: "But there's nothing to be afraid of", breath: 250 },
-        { chord: "D",  duration: 4800, intensity: 0.82, rollSpeed: 20, phrase: "Even when the night changes", breath: 600 }
+        { chord: "C",  duration: 3200, intensity: 0.74, rollSpeed: 16, phrase: "We're only getting older, baby", breath: 250 },
+        { chord: "D",  duration: 3200, intensity: 0.76, rollSpeed: 16, phrase: "And I've been thinking about it lately", breath: 250 },
+        { chord: "G",  duration: 3300, intensity: 0.78, rollSpeed: 18, phrase: "Does it ever drive you crazy", breath: 250 },
+        { chord: "Em", duration: 4200, intensity: 0.76, rollSpeed: 18, phrase: "Just how fast the night changes...", breath: 500 }
       ]
     }
   },
-  sadhana: {
-    title: "Sadhana",
-    artist: "John Chamling Rai",
-    tempo: 72,
+  iris: {
+    title: "Iris",
+    artist: "Goo Goo Dolls",
+    tempo: 76,
+    chordSlots: [
+      { key: "D",  name: "Dadd9", gesture: "OPEN PALM", emoji: "✋" },
+      { key: "Em", name: "Em7",   gesture: "PEACE",     emoji: "✌️" },
+      { key: "G",  name: "Gmaj7", gesture: "FIST",      emoji: "✊" },
+      { key: "Bm", name: "Bm7",   gesture: "POINT",     emoji: "☝️" },
+      { key: "A",  name: "Aadd9", gesture: "3 FINGERS", emoji: "🤟" },
+      { key: "C",  name: "Cadd9", gesture: "THUMB+INDEX", emoji: "🤙" }
+    ],
     progression: [
-      { chord: "Em", label: "Em7",   emoji: "✊" },
-      { chord: "C",  label: "Cadd9", emoji: "☝️" },
-      { chord: "G",  label: "Gmaj7", emoji: "✋" },
-      { chord: "D",  label: "Dadd9", emoji: "✌️" },
-      { chord: "Bm", label: "Bm7",   emoji: "🤟" },
-      { chord: "C",  label: "Cadd9", emoji: "☝️" }
+      { chord: "D",  label: "Dadd9", emoji: "✋" },
+      { chord: "Em", label: "Em7",   emoji: "✌️" },
+      { chord: "G",  label: "Gmaj7", emoji: "✊" },
+      { chord: "Bm", label: "Bm7",   emoji: "☝️" },
+      { chord: "A",  label: "Aadd9", emoji: "🤟" },
+      { chord: "G",  label: "Gmaj7", emoji: "✊" }
     ],
     sections: {
       verse: [
-        { chord: "Em", duration: 3600, intensity: 0.56, rollSpeed: 18, phrase: "Timro tyo muskan le birano sansar ma...", breath: 300 },
-        { chord: "C",  duration: 3600, intensity: 0.54, rollSpeed: 18, phrase: "Mero yo mutu ma ghara garyo", breath: 300 },
-        { chord: "G",  duration: 3600, intensity: 0.58, rollSpeed: 20, phrase: "Kasto yo katha ho nabujhine", breath: 300 },
-        { chord: "D",  duration: 3800, intensity: 0.56, rollSpeed: 18, phrase: "Sadhana bani timi basechau", breath: 400 }
+        { chord: "D",  duration: 3600, intensity: 0.65, rollSpeed: 20, phrase: "And I'd give up forever to touch you", breath: 250 },
+        { chord: "Em", duration: 3600, intensity: 0.62, rollSpeed: 20, phrase: "'Cause I know that you feel me somehow", breath: 250 },
+        { chord: "G",  duration: 4200, intensity: 0.68, rollSpeed: 22, phrase: "You're the closest to heaven that I'll ever be", breath: 350 },
+        { chord: "Bm", duration: 3600, intensity: 0.64, rollSpeed: 20, phrase: "And I don't want to go home right now", breath: 250 },
+        { chord: "A",  duration: 3600, intensity: 0.66, rollSpeed: 20, phrase: "And all I can taste is this moment", breath: 250 },
+        { chord: "G",  duration: 4600, intensity: 0.70, rollSpeed: 22, phrase: "And all I can breathe is your life", breath: 500 }
       ],
       chorus: [
-        { chord: "Em", duration: 3200, intensity: 0.76, rollSpeed: 16, phrase: "Har pal timrai yaad le sataucha", breath: 250 },
-        { chord: "C",  duration: 3200, intensity: 0.74, rollSpeed: 16, phrase: "Dubi rahancha yo mero mann", breath: 250 },
-        { chord: "G",  duration: 3400, intensity: 0.80, rollSpeed: 18, phrase: "Samhalna khojchu ma afulai", breath: 250 },
-        { chord: "D",  duration: 3400, intensity: 0.78, rollSpeed: 18, phrase: "Timi bahek kohi chaina yaha", breath: 300 },
-        { chord: "Bm", duration: 3200, intensity: 0.75, rollSpeed: 16, phrase: "Sadhana timro mero jeevan ko", breath: 250 },
-        { chord: "C",  duration: 4800, intensity: 0.82, rollSpeed: 20, phrase: "Aakash jastai asim maya...", breath: 600 }
-      ]
-    }
-  },
-  koChaRa: {
-    title: "Ko Cha Ra",
-    artist: "John Chamling Rai",
-    tempo: 78,
-    progression: [
-      { chord: "G",  label: "Gmaj7", emoji: "✋" },
-      { chord: "D",  label: "Dadd9", emoji: "✌️" },
-      { chord: "Em", label: "Em7",   emoji: "✊" },
-      { chord: "C",  label: "Cadd9", emoji: "☝️" }
-    ],
-    sections: {
-      verse: [
-        { chord: "G",  duration: 3400, intensity: 0.60, rollSpeed: 18, phrase: "Ko cha ra yaha timi bahek...", breath: 250 },
-        { chord: "D",  duration: 3400, intensity: 0.58, rollSpeed: 18, phrase: "Mero yo sano sansar ma", breath: 250 },
-        { chord: "Em", duration: 3400, intensity: 0.56, rollSpeed: 18, phrase: "Timilai nai ta rojeko chu", breath: 250 },
-        { chord: "C",  duration: 3800, intensity: 0.62, rollSpeed: 20, phrase: "Yo dhadkan le sadaiv bhari", breath: 350 }
-      ],
-      chorus: [
-        { chord: "G",  duration: 3000, intensity: 0.78, rollSpeed: 16, phrase: "Maya timro amar rahos", breath: 200 },
-        { chord: "D",  duration: 3000, intensity: 0.76, rollSpeed: 16, phrase: "Saath timro kahile nachutos", breath: 200 },
-        { chord: "Em", duration: 3200, intensity: 0.82, rollSpeed: 18, phrase: "Aankhako nani bani...", breath: 250 },
-        { chord: "C",  duration: 4600, intensity: 0.84, rollSpeed: 20, phrase: "Basideu mero mutu bhari", breath: 600 }
-      ]
-    }
-  },
-  mayaLe: {
-    title: "Maya Le",
-    artist: "John Chamling Rai",
-    tempo: 68,
-    progression: [
-      { chord: "G",  label: "Gmaj7", emoji: "✋" },
-      { chord: "Em", label: "Em7",   emoji: "✊" },
-      { chord: "C",  label: "Cadd9", emoji: "☝️" },
-      { chord: "D",  label: "Dadd9", emoji: "✌️" },
-      { chord: "Bm", label: "Bm7",   emoji: "🤟" }
-    ],
-    sections: {
-      verse: [
-        { chord: "G",  duration: 3600, intensity: 0.56, rollSpeed: 18, phrase: "Maya le badhiyeko yo mutu...", breath: 300 },
-        { chord: "Em", duration: 3600, intensity: 0.54, rollSpeed: 18, phrase: "Kati dherai chahana thiyo", breath: 300 },
-        { chord: "C",  duration: 3600, intensity: 0.58, rollSpeed: 18, phrase: "Timilai afno banauna lai", breath: 300 },
-        { chord: "D",  duration: 4000, intensity: 0.60, rollSpeed: 18, phrase: "Kati sapana sajaeko thiyo", breath: 400 }
-      ],
-      chorus: [
-        { chord: "G",  duration: 3200, intensity: 0.78, rollSpeed: 16, phrase: "Aaja timi tada bhayou", breath: 250 },
-        { chord: "Em", duration: 3200, intensity: 0.76, rollSpeed: 16, phrase: "Yaad matra baaki rahayo", breath: 250 },
-        { chord: "C",  duration: 3400, intensity: 0.80, rollSpeed: 18, phrase: "Maya le mero mutu ma...", breath: 250 },
-        { chord: "D",  duration: 3400, intensity: 0.82, rollSpeed: 18, phrase: "Ghaau bani basi rahayo", breath: 300 },
-        { chord: "Bm", duration: 4600, intensity: 0.78, rollSpeed: 20, phrase: "Timi bina ko mero jeevan...", breath: 600 }
-      ]
-    }
-  },
-  hawaLe: {
-    title: "Hawa Le",
-    artist: "John Chamling Rai",
-    tempo: 75,
-    progression: [
-      { chord: "D",  label: "Dadd9", emoji: "✌️" },
-      { chord: "Bm", label: "Bm7",   emoji: "🤟" },
-      { chord: "G",  label: "Gmaj7", emoji: "✋" },
-      { chord: "A",  label: "Aadd9", emoji: "🤙" }
-    ],
-    sections: {
-      verse: [
-        { chord: "D",  duration: 3500, intensity: 0.58, rollSpeed: 18, phrase: "Hawa le udaai lyayo timro suwaas...", breath: 300 },
-        { chord: "Bm", duration: 3500, intensity: 0.55, rollSpeed: 18, phrase: "Miteri gaasdai aayo paban", breath: 300 },
-        { chord: "G",  duration: 3500, intensity: 0.60, rollSpeed: 20, phrase: "Aakash ma herchu ma jahile pani", breath: 300 },
-        { chord: "A",  duration: 3800, intensity: 0.62, rollSpeed: 18, phrase: "Bhetchu timilai nai aashpas", breath: 400 }
-      ],
-      chorus: [
-        { chord: "D",  duration: 3200, intensity: 0.78, rollSpeed: 16, phrase: "Sheetal paban le choyo malai", breath: 250 },
-        { chord: "Bm", duration: 3200, intensity: 0.76, rollSpeed: 16, phrase: "Timrai sparsha jasto laagyo", breath: 250 },
-        { chord: "G",  duration: 3400, intensity: 0.82, rollSpeed: 18, phrase: "Hawa le sandesh lyaidiyo...", breath: 250 },
-        { chord: "A",  duration: 4600, intensity: 0.84, rollSpeed: 20, phrase: "Timrai maya le badhidiyo", breath: 600 }
-      ]
-    }
-  },
-  timiBahek: {
-    title: "Timi Bahek",
-    artist: "John Chamling Rai",
-    tempo: 70,
-    progression: [
-      { chord: "C",  label: "Cadd9", emoji: "☝️" },
-      { chord: "G",  label: "Gmaj7", emoji: "✋" },
-      { chord: "Em", label: "Em7",   emoji: "✊" },
-      { chord: "D",  label: "Dadd9", emoji: "✌️" }
-    ],
-    sections: {
-      verse: [
-        { chord: "C",  duration: 3600, intensity: 0.58, rollSpeed: 18, phrase: "Timi bahek aru kohi chaina...", breath: 300 },
-        { chord: "G",  duration: 3600, intensity: 0.56, rollSpeed: 18, phrase: "Mero yo adhuro sansar ma", breath: 300 },
-        { chord: "Em", duration: 3600, intensity: 0.54, rollSpeed: 18, phrase: "Timilai nai maile samjhirahanchu", breath: 300 },
-        { chord: "D",  duration: 4000, intensity: 0.60, rollSpeed: 18, phrase: "Pratyek saas ra pratyek pal ma", breath: 400 }
-      ],
-      chorus: [
-        { chord: "C",  duration: 3200, intensity: 0.78, rollSpeed: 16, phrase: "Haat samau timi mero", breath: 250 },
-        { chord: "G",  duration: 3200, intensity: 0.80, rollSpeed: 16, phrase: "Saath nachutawos kahile", breath: 250 },
-        { chord: "Em", duration: 3400, intensity: 0.82, rollSpeed: 18, phrase: "Timrai naam lekheko chu...", breath: 250 },
-        { chord: "D",  duration: 4800, intensity: 0.84, rollSpeed: 20, phrase: "Mero yo mutu bhari...", breath: 600 }
+        { chord: "Bm", duration: 2800, intensity: 0.76, rollSpeed: 16, phrase: "And I don't want the world to see me", breath: 200 },
+        { chord: "A",  duration: 2800, intensity: 0.74, rollSpeed: 16, phrase: "'Cause I don't think that they'd understand", breath: 200 },
+        { chord: "G",  duration: 4200, intensity: 0.80, rollSpeed: 20, phrase: "When everything's made to be broken", breath: 350 },
+        { chord: "Bm", duration: 2900, intensity: 0.78, rollSpeed: 16, phrase: "I just want you to know who I am", breath: 250 },
+        { chord: "A",  duration: 2900, intensity: 0.75, rollSpeed: 16, phrase: "", breath: 250 },
+        { chord: "G",  duration: 5200, intensity: 0.82, rollSpeed: 22, phrase: "(Chorus bloom & fade)", breath: 600 }
       ]
     }
   }
 };
 
-function buildSongSchedule(songKey = "iris") {
+function buildSongSchedule(songKey = "sadhana") {
   const song = SONGS[songKey];
   if (!song) return [];
   const schedule = [];
@@ -311,8 +376,36 @@ function buildSongSchedule(songKey = "iris") {
   return schedule;
 }
 
-let currentSongKey = "iris";
+let currentSongKey = "sadhana";
 let currentSongSchedule = buildSongSchedule(currentSongKey);
+
+function renderPianoKeys(songKey) {
+  const song = SONGS[songKey];
+  const piano = document.querySelector("#piano");
+  if (!piano || !song || !song.chordSlots) return;
+
+  piano.innerHTML = "";
+  song.chordSlots.forEach((slot) => {
+    const btn = document.createElement("button");
+    btn.className = "piano-key";
+    btn.type = "button";
+    btn.dataset.chord = slot.key;
+    btn.setAttribute("aria-label", `Play ${slot.name}`);
+    btn.innerHTML = `
+      <span class="key-emoji">${slot.emoji}</span>
+      <strong>${slot.key}</strong>
+      <span>${slot.name}</span>
+      <small>${slot.gesture}</small>
+    `;
+    btn.addEventListener("click", async () => {
+      await audio.unlock();
+      updateChord(slot.key, "keyboard");
+    });
+    piano.appendChild(btn);
+  });
+
+  el.keys = [...piano.querySelectorAll(".piano-key")];
+}
 
 function renderProgression(songKey) {
   const song = SONGS[songKey];
@@ -334,6 +427,19 @@ function renderProgression(songKey) {
   });
 
   el.progression = [...container.querySelectorAll("[data-chord]")];
+}
+
+function updateActiveSong(songKey) {
+  if (!SONGS[songKey]) return;
+  currentSongKey = songKey;
+  currentSongSchedule = buildSongSchedule(songKey);
+  renderPianoKeys(songKey);
+  renderProgression(songKey);
+  if (autoPlayEnabled) {
+    autoPlayIndex = 0;
+    window.clearTimeout(autoPlayTimer);
+    playNextAutoChord();
+  }
 }
 
 const el = {
@@ -396,16 +502,14 @@ class AudioEngine {
     this.enabled = true;
     this.volume = 1.0;
     this.masterGain = null;
-    this.masterBus = null;
     this.activeVoices = [];
-    this.releaseTimer = null;
     this.lastChord = "MUTE";
   }
 
   setVolume(vol) {
     this.volume = Math.max(0, Math.min(1.0, vol));
     if (this.masterGain && this.context) {
-      this.masterGain.gain.setValueAtTime(this.volume, this.context.currentTime);
+      this.masterGain.gain.setValueAtTime(this.volume * 0.75, this.context.currentTime);
     }
   }
 
@@ -420,44 +524,10 @@ class AudioEngine {
     try {
       this.context = new AudioCtx();
 
-      // Master output bus with volume control
-      this.masterBus = this.context.createGain();
-      this.masterBus.gain.value = 1.05;
-
+      // Master output gain with calibrated digital headroom (never clips or buzzes)
       this.masterGain = this.context.createGain();
-      this.masterGain.gain.value = this.volume;
-
-      // Transparent limiter prevents digital clipping while preserving pure tone
-      this.limiter = this.context.createDynamicsCompressor();
-      this.limiter.threshold.setValueAtTime(-1.0, this.context.currentTime);
-      this.limiter.knee.setValueAtTime(8, this.context.currentTime);
-      this.limiter.ratio.setValueAtTime(2.8, this.context.currentTime);
-      this.limiter.attack.setValueAtTime(0.003, this.context.currentTime);
-      this.limiter.release.setValueAtTime(0.12, this.context.currentTime);
-
-      this.masterBus.connect(this.limiter);
-      this.limiter.connect(this.masterGain);
+      this.masterGain.gain.setValueAtTime(this.volume * 0.75, this.context.currentTime);
       this.masterGain.connect(this.context.destination);
-
-      // Clean, silky stereo acoustic space (zero white noise, zero buzz)
-      try {
-        const delay = this.context.createDelay(0.1);
-        delay.delayTime.setValueAtTime(0.028, this.context.currentTime);
-
-        const delayFilter = this.context.createBiquadFilter();
-        delayFilter.type = "lowpass";
-        delayFilter.frequency.setValueAtTime(1800, this.context.currentTime);
-
-        const delayGain = this.context.createGain();
-        delayGain.gain.setValueAtTime(0.12, this.context.currentTime);
-
-        this.masterBus.connect(delay);
-        delay.connect(delayFilter);
-        delayFilter.connect(delayGain);
-        delayGain.connect(this.masterGain);
-      } catch (spaceErr) {
-        console.warn("[AUDIO] Spatial effect skipped:", spaceErr);
-      }
     } catch (err) {
       console.error("[AUDIO] Failed to initialize AudioContext:", err);
     }
@@ -477,28 +547,25 @@ class AudioEngine {
     return this.context.state === "running";
   }
 
-  // Release currently sounding chord smoothly without clicks
-  release(seconds = 0.28) {
+  // Smooth, pop-free acoustic crossfade release using cancelAndHoldAtTime
+  release(seconds = 0.35) {
     if (!this.context || this.context.state === "suspended") return;
     const now = this.context.currentTime;
-    const releaseTime = Math.max(0.10, Math.min(seconds, 0.6));
+    const timeConstant = seconds / 3.2;
 
     const voicesToRelease = this.activeVoices;
     this.activeVoices = [];
 
     for (const voice of voicesToRelease) {
       try {
-        const gain = voice.gain.gain;
-        gain.cancelScheduledValues(now);
-        const currentVal = Math.max(gain.value, 0.0001);
-        gain.setValueAtTime(currentVal, now);
-        gain.setTargetAtTime(0.00001, now, releaseTime / 3.0);
-
-        voice.oscillators.forEach((osc) => {
-          try {
-            osc.stop(now + releaseTime + 0.04);
-          } catch {}
-        });
+        const param = voice.gain.gain;
+        if (typeof param.cancelAndHoldAtTime === "function") {
+          param.cancelAndHoldAtTime(now);
+        } else {
+          param.cancelScheduledValues(now);
+          param.setValueAtTime(param.value, now);
+        }
+        param.setTargetAtTime(0.00001, now, timeConstant);
       } catch {}
     }
   }
@@ -508,19 +575,22 @@ class AudioEngine {
     const now = this.context.currentTime;
     for (const voice of this.activeVoices) {
       try {
-        voice.gain.gain.cancelScheduledValues(now);
-        voice.gain.gain.setValueAtTime(0.00001, now);
-        voice.oscillators.forEach((osc) => {
-          try { osc.stop(now + 0.01); } catch {}
-        });
+        const param = voice.gain.gain;
+        if (typeof param.cancelAndHoldAtTime === "function") {
+          param.cancelAndHoldAtTime(now);
+        } else {
+          param.cancelScheduledValues(now);
+          param.setValueAtTime(param.value, now);
+        }
+        param.setTargetAtTime(0.00001, now, 0.01);
       } catch {}
     }
     this.activeVoices = [];
     this.lastChord = "MUTE";
   }
 
-  async play(chord, intensity = 0.85, rollSpeedMs = 15) {
-    if (!this.enabled || chord === "MUTE" || !CHORDS[chord]) return;
+  async play(chord, intensity = 0.85, rollSpeedMs = 20) {
+    if (!this.enabled || chord === "MUTE" || !ALL_CHORDS[chord]) return;
     this.initContext();
     if (!this.context) return;
 
@@ -532,78 +602,54 @@ class AudioEngine {
       }
     }
 
-    // Release old chord voices smoothly without clicks
-    this.release(0.28);
+    // Lush seamless crossfade: gently fade previous chord without pops or clicks
+    this.release(0.35);
 
     const now = this.context.currentTime + 0.015;
-    const notes = CHORDS[chord].notes;
-    const roll = Math.min(0.024, Math.max(0.008, rollSpeedMs / 1000));
-    const intensityScale = Math.min(1.2, Math.max(0.65, intensity));
+    const notes = ALL_CHORDS[chord].notes;
+    const roll = Math.min(0.026, Math.max(0.014, rollSpeedMs / 1000));
+    const intensityScale = Math.min(1.15, Math.max(0.70, intensity));
 
     const newVoices = notes.map((frequency, index) => {
-      // Laptop speakers struggle under 115 Hz.
-      // Doubling sub-115Hz bass notes keeps them clean and audible without driver distortion:
-      const isSubBass = frequency < 115;
-      const fundamentalFreq = isSubBass ? frequency * 2 : frequency;
       const start = now + index * roll;
 
-      // PURE ADDITIVE SINE SYNTHESIS (Zero Harsh Buzz):
-      // 1. Primary fundamental oscillator: Pure Sine wave
-      const fundamentalOsc = this.context.createOscillator();
-      fundamentalOsc.type = "sine";
-      fundamentalOsc.frequency.setValueAtTime(fundamentalFreq, start);
+      // 1. Warm acoustic body: triangle wave has natural harmonic roll-off (1/n²), never harsh
+      const osc = this.context.createOscillator();
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(frequency, start);
 
-      // 2. Harmonic chime oscillator: 2nd harmonic (octave chime) for glassy acoustic piano strike
-      const chimeOsc = this.context.createOscillator();
-      chimeOsc.type = "sine";
-      chimeOsc.frequency.setValueAtTime(fundamentalFreq * 2, start);
-
-      // Dedicated gains for natural hammer decay
-      const voiceGain = this.context.createGain();
-      const chimeGain = this.context.createGain();
-
-      // Individual lowpass filter keeps tone velvety
+      // 2. Velvety 2nd-order acoustic lowpass filter (warm wooden resonance, zero buzzing)
       const filter = this.context.createBiquadFilter();
       filter.type = "lowpass";
-      filter.Q.setValueAtTime(0.5, start); // Bessel / smooth damping (zero resonance)
-      filter.frequency.setValueAtTime(Math.min(2600, fundamentalFreq * 4.0), start);
-      filter.frequency.setTargetAtTime(Math.max(500, fundamentalFreq * 1.5), start + 0.04, 0.4);
+      filter.Q.setValueAtTime(0.7, start);
+      filter.frequency.setValueAtTime(Math.min(2600, Math.max(1200, frequency * 3.8)), start);
+      filter.frequency.setTargetAtTime(Math.min(1100, Math.max(600, frequency * 1.8)), start + 0.03, 0.45);
 
-      // Voice level tuning - slightly fuller presence while completely smooth
-      const peak = (isSubBass ? 0.28 : 0.23) * (intensityScale / 0.85);
+      // Dedicated voice gain with calibrated headroom (5-6 strings sum to <= 0.39, impossible to clip)
+      const voiceGain = this.context.createGain();
+      const peak = 0.065 * (intensityScale / 0.85);
 
-      // Connect fundamental
-      fundamentalOsc.connect(filter);
+      // Connect graph: osc -> filter -> voiceGain -> masterGain -> destination
+      osc.connect(filter);
       filter.connect(voiceGain);
-      voiceGain.connect(this.masterBus);
+      voiceGain.connect(this.masterGain);
 
-      // Connect chime (tine)
-      chimeOsc.connect(chimeGain);
-      chimeGain.connect(filter);
-
-      // Fundamental envelope: Smooth strike -> natural acoustic singing decay
-      voiceGain.gain.setValueAtTime(0.0001, start);
-      voiceGain.gain.linearRampToValueAtTime(peak, start + 0.008);
-      voiceGain.gain.setTargetAtTime(0.00001, start + 0.06, 1.6); // Natural 2.5s fade
-
-      // Chime envelope: Fast hammer strike that fades in 120ms
-      chimeGain.gain.setValueAtTime(0.0001, start);
-      chimeGain.gain.linearRampToValueAtTime(peak * 0.22, start + 0.006);
-      chimeGain.gain.setTargetAtTime(0.00001, start + 0.03, 0.10);
-
-      try { fundamentalOsc.start(start); } catch {}
-      try { chimeOsc.start(start); } catch {}
+      // Click-free acoustic pluck envelope:
+      // 25ms soft pluck ramp -> 2.5s exponential decay
+      voiceGain.gain.setValueAtTime(0.00001, start);
+      voiceGain.gain.linearRampToValueAtTime(peak, start + 0.025);
+      voiceGain.gain.setTargetAtTime(0.00001, start + 0.04, 1.4);
 
       try {
-        fundamentalOsc.stop(start + 6.0);
-        chimeOsc.stop(start + 2.0);
+        osc.start(start);
+        osc.stop(start + 5.0);
       } catch {}
 
       return {
-        oscillators: [fundamentalOsc, chimeOsc],
+        oscillators: [osc],
         gain: voiceGain,
         startTime: start,
-        stopTime: start + 6.0
+        stopTime: start + 5.0
       };
     });
 
@@ -729,24 +775,28 @@ function updateDebug() {
   el.debug.innerHTML = `<b>DEBUG</b><span>Detected: ${rawGesture}</span><span>Stable: ${stableGesture}</span><span>Confidence: ${lastClassification?.confidence?.toFixed(2) || "0.00"}</span><span>Thumb: ${states.thumb || "—"} · Index: ${states.index || "—"}</span><span>Middle: ${states.middle || "—"} · Ring: ${states.ring || "—"} · Pinky: ${states.pinky || "—"}</span><span>Mapped chord: ${stableGesture in CHORDS ? stableGesture : "—"}</span>`;
 }
 
-function updateChord(chord, source = "gesture", intensity = 0.65, rollSpeed = 16, subtitle = null) {
-  if (!CHORDS[chord]) return;
+function updateChord(chord, source = "gesture", intensity = 0.65, rollSpeed = 18, subtitle = null) {
+  if (!CHORDS[chord] && chord !== "MUTE") return;
   // If controlled by hand gesture, do not re-trigger the exact same chord continuously while the hand is held
   if (source === "gesture" && chord === currentChord) return;
   currentChord = chord;
 
   if (chord === "MUTE") {
-    audio.release(0.8);
+    audio.release(0.5);
   } else {
     audio.play(chord, intensity, rollSpeed);
   }
 
   // 2. UI PATH: Update visual elements
-  const data = CHORDS[chord];
-  const song = SONGS[currentSongKey];
-  el.chord.textContent = data.displayName || data.name;
+  const data = CHORDS[chord] || { name: "MUTE", displayName: "MUTE" };
+  const song = SONGS[currentSongKey] || SONGS.sadhana;
+  const slot = song.chordSlots ? song.chordSlots.find((s) => s.key === chord) : null;
+  const chordTitle = slot ? slot.name : (data.displayName || data.name);
+  const gestureText = slot ? `${slot.emoji} ${slot.gesture}` : "PLAYING";
+
+  el.chord.textContent = chordTitle;
   el.description.textContent = subtitle || (chord === "MUTE" ? "No chord is playing" : source === "gesture" ? "Controlled by your hand" : source === "auto" ? `${song?.title || "Song"} accompaniment` : "Playing from the keyboard");
-  el.gesture.textContent = source === "gesture" ? data.gesture : source === "auto" ? "AUTO PLAY" : chord === "MUTE" ? "MUTED" : "KEY PRESSED";
+  el.gesture.textContent = source === "gesture" ? gestureText : source === "auto" ? "AUTO PLAY" : chord === "MUTE" ? "MUTED" : "KEY PRESSED";
   el.keys.forEach((key) => key.classList.toggle("active", key.dataset.chord === chord));
   el.progression.forEach((step) => step.classList.toggle("active", step.dataset.chord === chord));
   el.mute.classList.toggle("active", chord === "MUTE");
@@ -853,48 +903,58 @@ function classifyGesture(points) {
 
   const extendedCount = [idx.extended, mid.extended, rng.extended, pnk.extended].filter(Boolean).length;
 
-  let chord = "MUTE";
+  let slotIndex = -1;
+  let gestureLabel = "SEARCHING";
   let confidence = 0.98;
 
-  // 1. OPEN HAND (G): All 4 fingers extended
+  // 1. OPEN PALM (Slot 0): 4 fingers extended
   if (extendedCount >= 4) {
-    chord = "G";
+    slotIndex = 0;
+    gestureLabel = "OPEN PALM";
   }
-  // 2. THREE FINGERS (Bm): Exactly 3 fingers extended (Index + Middle + Ring up, Pinky curled)
-  else if (extendedCount === 3 && idx.extended && mid.extended && rng.extended && !pnk.extended) {
-    chord = "Bm";
-  }
-  // 3. PEACE SIGN (D): Exactly 2 fingers extended (Index + Middle up, Ring & Pinky curled)
-  else if (extendedCount === 2 && idx.extended && mid.extended && !rng.extended && !pnk.extended) {
-    chord = "D";
-  }
-  // If count is exactly 2, GUARANTEE Peace Sign (D)
-  else if (extendedCount === 2) {
-    chord = "D";
-  }
-  // If count is exactly 3, GUARANTEE Three Fingers (Bm)
+  // 2. THREE FINGERS (Slot 4): exactly 3 fingers extended
   else if (extendedCount === 3) {
-    chord = "Bm";
+    slotIndex = 4;
+    gestureLabel = "3 FINGERS";
   }
-  // 4. SINGLE FINGER (Point C or Thumb+Index A)
-  else if (extendedCount === 1) {
-    if (idx.extended && thb.extended) {
-      chord = "A"; // THUMB + INDEX
-    } else if (idx.extended) {
-      chord = "C"; // POINT
+  // 3. PEACE SIGN (Slot 1): exactly 2 fingers extended
+  else if (extendedCount === 2) {
+    if (thb.extended && idx.extended && !mid.extended) {
+      slotIndex = 5;
+      gestureLabel = "THUMB + INDEX";
     } else {
-      chord = "C";
+      slotIndex = 1;
+      gestureLabel = "PEACE";
     }
   }
-  // 5. FIST (Em): 0 fingers extended
+  // 4. SINGLE FINGER (Slot 3 or Slot 5)
+  else if (extendedCount === 1) {
+    if (idx.extended && thb.extended) {
+      slotIndex = 5;
+      gestureLabel = "THUMB + INDEX";
+    } else {
+      slotIndex = 3;
+      gestureLabel = "POINT";
+    }
+  }
+  // 5. FIST (Slot 2): 0 fingers extended
   else if (extendedCount === 0) {
-    chord = "Em";
+    slotIndex = 2;
+    gestureLabel = "FIST";
   } else {
     confidence = 0.40;
   }
 
+  const song = SONGS[currentSongKey] || SONGS.sadhana;
+  const slot = (slotIndex >= 0 && slotIndex < song.chordSlots.length) ? song.chordSlots[slotIndex] : null;
+  const chord = slot ? slot.key : "MUTE";
+  const chordName = slot ? slot.name : "MUTE";
+
   return {
     gesture: chord,
+    slotIndex,
+    gestureLabel,
+    chordName,
     confidence,
     states,
     extendedCount,
@@ -915,7 +975,7 @@ function processGesture(points) {
     if (noHandFrames >= 3) {
       if (currentChord !== "MUTE") {
         console.info(`[GESTURE] Hand lost -> release at ${now.toFixed(1)}ms`);
-        audio.release(0.8);
+        audio.release(0.5);
         updateChord("MUTE", "gesture");
       }
 
@@ -937,12 +997,11 @@ function processGesture(points) {
   lastClassification = classification;
 
   const gesture = classification.gesture || "MUTE";
-  const confidence = classification.confidence || 0;
 
   rawGesture =
     gesture === "MUTE"
       ? "NO VALID GESTURE"
-      : (CHORDS[gesture]?.gesture || "UNKNOWN");
+      : (classification.gestureLabel || "UNKNOWN");
 
   if (gesture === "MUTE") {
     candidateFrames = 0;
@@ -964,17 +1023,16 @@ function processGesture(points) {
   const heldMs = now - candidateStartTime;
 
   // Stable confirmation: require at least 3 consecutive frames AND 65ms hold
-  // Prevents flutter / jitter while moving fingers between gestures
   const isConfirmed = candidateFrames >= 3 && heldMs >= 65;
 
   if (isConfirmed && gesture !== currentChord && (now - lastChordTriggerTime >= 150)) {
     lastChordTriggerTime = now;
     stableGesture = gesture;
-    console.info(`[GESTURE CONFIRMED] ${gesture} in ${heldMs.toFixed(1)}ms`);
-    updateChord(gesture, "gesture", 0.85, 14);
+    console.info(`[GESTURE CONFIRMED] ${gesture} (${classification.gestureLabel}) in ${heldMs.toFixed(1)}ms`);
+    updateChord(gesture, "gesture", 0.80, 16);
   }
 
-  el.gesture.textContent = CHORDS[gesture]?.gesture || rawGesture;
+  el.gesture.textContent = classification.gestureLabel || rawGesture;
   updateDebug();
 }
 
@@ -1020,14 +1078,13 @@ function drawHand(points, classification) {
 
   // Live un-mirrored HUD badge in camera stage (bottom-right)
   if (classification && classification.gesture && classification.gesture !== "MUTE") {
-    const chordData = CHORDS[classification.gesture];
-    const name = chordData?.displayName || chordData?.name || classification.gesture;
-    const gestureName = chordData?.gesture || "";
+    const gestureLabel = classification.gestureLabel || "";
+    const name = classification.chordName || classification.gesture;
     const count = classification.extendedCount != null ? `[${classification.extendedCount}] ` : "";
 
     if (el.cameraHud && el.cameraHudText) {
       el.cameraHud.hidden = false;
-      el.cameraHudText.textContent = `${gestureName} ${count}→ ${name}`;
+      el.cameraHudText.textContent = `${gestureLabel} ${count}→ ${name}`;
     }
   } else {
     if (el.cameraHud) {
@@ -1506,18 +1563,11 @@ if (el.songSelect) {
     await audio.unlock();
     const newKey = e.target.value;
     if (SONGS[newKey]) {
-      currentSongKey = newKey;
-      currentSongSchedule = buildSongSchedule(newKey);
-      renderProgression(newKey);
-      if (autoPlayEnabled) {
-        autoPlayIndex = 0;
-        window.clearTimeout(autoPlayTimer);
-        playNextAutoChord();
-      }
+      updateActiveSong(newKey);
     }
   });
 }
 
-renderProgression(currentSongKey);
+updateActiveSong(currentSongKey);
 setCameraState(CAMERA.IDLE);
 
