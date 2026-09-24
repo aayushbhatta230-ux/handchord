@@ -532,87 +532,84 @@ function angle(a, b, c) {
   return Math.acos(Math.max(-1, Math.min(1, cosine))) * 180 / Math.PI;
 }
 
-function fingerState(points, mcp, pip, dip, tip) {
+function isFingerExtended(points, mcp, pip, dip, tip) {
+  const wrist = points[0];
+  const tipDist = distance(points[tip], wrist);
+  const pipDist = distance(points[pip], wrist);
+  const mcpDist = Math.max(distance(points[mcp], wrist), 0.001);
+  const reach = tipDist / mcpDist;
+
   const bend = Math.min(
     angle(points[mcp], points[pip], points[dip]),
     angle(points[pip], points[dip], points[tip])
   );
-  const mcpDist = Math.max(distance(points[mcp], points[0]), 0.001);
-  const reach = distance(points[tip], points[0]) / mcpDist;
-  if (bend >= 136 && reach >= 1.18) return "extended";
-  if (bend <= 112 || reach <= 1.04) return "curled";
-  return "partial";
+
+  return tipDist > pipDist * 1.08 && reach >= 1.12 && bend >= 120;
 }
 
-function thumbState(points) {
+function isThumbExtended(points) {
+  const wrist = points[0];
+  const thumbTip = points[4];
+  const indexMcp = points[5];
+  const thumbMcp = points[2];
+
+  const spread = distance(thumbTip, indexMcp) / Math.max(distance(thumbMcp, wrist), 0.001);
   const bend = Math.min(
     angle(points[1], points[2], points[3]),
     angle(points[2], points[3], points[4])
   );
-  const mcpDist = Math.max(distance(points[2], points[0]), 0.001);
-  const reach = distance(points[4], points[0]) / mcpDist;
-  const thumbSpread = distance(points[4], points[5]) / mcpDist;
-  if ((bend >= 132 && reach >= 1.16) || thumbSpread >= 0.85) return "extended";
-  if (bend <= 112 && reach <= 1.05 && thumbSpread < 0.65) return "curled";
-  return "partial";
+
+  return bend >= 130 && spread >= 0.70;
 }
 
-const GESTURE_TEMPLATES = {
-  G: [
-    ["extended", "extended", "extended", "extended", "extended"]
-  ],
-  D: [
-    ["curled", "extended", "extended", "curled", "curled"]
-  ],
-  Em: [
-    ["curled", "curled", "curled", "curled", "curled"]
-  ],
-  C: [
-    ["curled", "extended", "curled", "curled", "curled"]
-  ],
-  A: [
-    ["extended", "extended", "curled", "curled", "curled"]
-  ],
-  Bm: [
-    ["curled", "extended", "extended", "extended", "curled"],
-    ["extended", "extended", "extended", "curled", "curled"],
-    ["extended", "curled", "extended", "curled", "curled"],
-    ["extended", "curled", "curled", "curled", "extended"]
-  ]
-};
-
 function classifyGesture(points) {
-  const states = {
-    thumb: thumbState(points),
-    index: fingerState(points, 5, 6, 7, 8),
-    middle: fingerState(points, 9, 10, 11, 12),
-    ring: fingerState(points, 13, 14, 15, 16),
-    pinky: fingerState(points, 17, 18, 19, 20)
-  };
-  const values = [states.thumb, states.index, states.middle, states.ring, states.pinky];
-  let best = "MUTE";
-  let confidence = 0;
+  const indexUp = isFingerExtended(points, 5, 6, 7, 8);
+  const middleUp = isFingerExtended(points, 9, 10, 11, 12);
+  const ringUp = isFingerExtended(points, 13, 14, 15, 16);
+  const pinkyUp = isFingerExtended(points, 17, 18, 19, 20);
+  const thumbUp = isThumbExtended(points);
 
-  for (const [chord, templates] of Object.entries(GESTURE_TEMPLATES)) {
-    for (const template of templates) {
-      let score = 0;
-      for (let i = 0; i < 5; i++) {
-        if (values[i] === template[i]) {
-          score += 1.0;
-        } else if (values[i] === "partial" || template[i] === "partial") {
-          score += 0.45;
-        }
-      }
-      const normalizedScore = score / 5.0;
-      if (normalizedScore > confidence) {
-        best = chord;
-        confidence = normalizedScore;
-      }
-    }
+  const states = {
+    thumb: thumbUp ? "extended" : "curled",
+    index: indexUp ? "extended" : "curled",
+    middle: middleUp ? "extended" : "curled",
+    ring: ringUp ? "extended" : "curled",
+    pinky: pinkyUp ? "extended" : "curled"
+  };
+
+  let chord = "MUTE";
+  let confidence = 0.96;
+
+  // 1. OPEN HAND (G): All 4 fingers (index, middle, ring, pinky) extended!
+  if (indexUp && middleUp && ringUp && pinkyUp) {
+    chord = "G";
+  }
+  // 2. THREE FINGERS (Bm): Exactly 3 fingers up (Index + Middle + Ring) AND Pinky MUST be curled!
+  else if (indexUp && middleUp && ringUp && !pinkyUp) {
+    chord = "Bm";
+  }
+  // 3. PEACE SIGN (D): Exactly 2 fingers up (Index + Middle) AND Ring & Pinky MUST be curled!
+  // (Thumb can be anywhere - folded over fingers or out, 2 fingers is ALWAYS Peace Sign)
+  else if (indexUp && middleUp && !ringUp && !pinkyUp) {
+    chord = "D";
+  }
+  // 4. POINT (C): Only Index finger extended, Middle/Ring/Pinky and Thumb curled
+  else if (indexUp && !middleUp && !ringUp && !pinkyUp && !thumbUp) {
+    chord = "C";
+  }
+  // 5. THUMB + INDEX (A): Thumb and Index extended, Middle/Ring/Pinky curled
+  else if (indexUp && !middleUp && !ringUp && !pinkyUp && thumbUp) {
+    chord = "A";
+  }
+  // 6. FIST (Em): All 4 main fingers curled
+  else if (!indexUp && !middleUp && !ringUp && !pinkyUp) {
+    chord = "Em";
+  } else {
+    confidence = 0.50;
   }
 
   return {
-    gesture: confidence >= 0.78 ? best : "MUTE",
+    gesture: chord,
     confidence,
     states
   };
@@ -705,12 +702,12 @@ function processGesture(points) {
       `(conf=${confidence.toFixed(2)})`
     );
 
-    // Trigger the Web Audio engine immediately.
+    // Trigger the Web Audio engine immediately with full amplified intensity.
     updateChord(
       gesture,
       "gesture",
-      0.60,
-      10
+      0.85,
+      12
     );
   }
 
