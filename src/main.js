@@ -147,6 +147,10 @@ let trackerPromise = null;
 let animationFrame = null;
 let trackerReady = false;
 let lastVideoTime = -1;
+let isProcessingFrame = false;
+let lastInferenceTime = 0;
+let consecutiveDetectionErrors = 0;
+let consecutiveDeadVideoFrames = 0;
 
 // Fast gesture state tracking
 let currentChord = "MUTE";
@@ -262,28 +266,29 @@ class AudioEngine {
   }
 
   // Release currently sounding chord smoothly
-  release(seconds = 0.5) {
+  release(seconds = 0.35) {
     if (!this.context || this.context.state === "suspended") return;
     const now = this.context.currentTime;
-    const releaseTime = Math.max(0.15, Math.min(seconds, 1.2));
+    const releaseTime = Math.max(0.12, Math.min(seconds, 0.7));
 
-    for (const voice of this.activeVoices) {
+    const voicesToRelease = this.activeVoices;
+    this.activeVoices = [];
+
+    for (const voice of voicesToRelease) {
       try {
         const gain = voice.gain.gain;
         gain.cancelScheduledValues(now);
         const currentVal = Math.max(gain.value, 0.0001);
         gain.setValueAtTime(currentVal, now);
-        gain.setTargetAtTime(0.00001, now, releaseTime / 3.2);
+        gain.setTargetAtTime(0.00001, now, releaseTime / 3.0);
 
         voice.oscillators.forEach((osc) => {
           try {
-            osc.stop(now + releaseTime + 0.05);
+            osc.stop(now + releaseTime + 0.04);
           } catch {}
         });
       } catch {}
     }
-
-    this.activeVoices = [];
   }
 
   stopImmediately() {
@@ -819,16 +824,32 @@ async function initializeTracker() {
     const vision = await FilesetResolver.forVisionTasks(WASM_URL);
     console.info("[MEDIAPIPE] Vision runtime loaded.");
     console.info("[MEDIAPIPE] Loading HandLandmarker...");
-    handLandmarker = await HandLandmarker.createFromOptions(vision, {
-      baseOptions: { modelAssetPath: MODEL_URL, delegate: "CPU" },
-      runningMode: "VIDEO",
-      numHands: 1,
-      minHandDetectionConfidence: .55,
-      minHandPresenceConfidence: .55,
-      minTrackingConfidence: .55
-    });
+
+    // 1. Attempt hardware-accelerated GPU delegate for smooth 60fps performance
+    try {
+      handLandmarker = await HandLandmarker.createFromOptions(vision, {
+        baseOptions: { modelAssetPath: MODEL_URL, delegate: "GPU" },
+        runningMode: "VIDEO",
+        numHands: 1,
+        minHandDetectionConfidence: 0.5,
+        minHandPresenceConfidence: 0.5,
+        minTrackingConfidence: 0.5
+      });
+      console.info("[MEDIAPIPE] HandLandmarker loaded with GPU acceleration.");
+    } catch (gpuErr) {
+      console.warn("[MEDIAPIPE] GPU acceleration unavailable, using CPU fallback:", gpuErr);
+      handLandmarker = await HandLandmarker.createFromOptions(vision, {
+        baseOptions: { modelAssetPath: MODEL_URL, delegate: "CPU" },
+        runningMode: "VIDEO",
+        numHands: 1,
+        minHandDetectionConfidence: 0.5,
+        minHandPresenceConfidence: 0.5,
+        minTrackingConfidence: 0.5
+      });
+      console.info("[MEDIAPIPE] HandLandmarker loaded with CPU.");
+    }
+
     trackerReady = true;
-    console.info("[MEDIAPIPE] HandLandmarker loaded.");
     return handLandmarker;
   })();
   try {
@@ -845,29 +866,56 @@ async function initializeTracker() {
 
 function detectFrame() {
   if (cameraState !== CAMERA.LIVE || !trackerReady || !handLandmarker) return;
+
+  // 1. Resilient video stream check - NEVER kill camera on transient frame drop
   if (!isLiveVideoReady(el.video, stream)) {
-    console.warn("[TRACKER] Live video track check failed during detection frame");
-    stopExistingStream();
-    setCameraState(CAMERA.ERROR, {
-      title: "Camera Stream Lost",
-      message: "Camera stream became unavailable during hand tracking.",
-      trackingText: "Camera stream was lost."
-    });
+    consecutiveDeadVideoFrames++;
+    if (consecutiveDeadVideoFrames > 90) { // ~3 seconds of continuous dead stream
+      console.warn("[TRACKER] Live video track lost permanently.");
+      stopExistingStream();
+      setCameraState(CAMERA.ERROR, {
+        title: "Camera Stream Lost",
+        message: "Camera stream became unavailable during hand tracking.",
+        trackingText: "Camera stream was lost."
+      });
+      return;
+    }
+    // Temporary drop: keep RAF loop alive
+    animationFrame = requestAnimationFrame(detectFrame);
     return;
   }
+  consecutiveDeadVideoFrames = 0;
+
+  // 2. Synchronize canvas resolution dynamically
+  if (el.video.videoWidth > 0 && (el.canvas.width !== el.video.videoWidth || el.canvas.height !== el.video.videoHeight)) {
+    el.canvas.width = el.video.videoWidth;
+    el.canvas.height = el.video.videoHeight;
+  }
+
+  // 3. Pacing & Concurrency Guard:
+  // - Prevent overlapping ML inference calls
+  // - Pace inference to ~33 FPS max (webcam refresh rate) to free CPU for rendering & audio
+  const now = performance.now();
+  const timeSinceLastInference = now - lastInferenceTime;
+  const isNewVideoFrame = el.video.currentTime !== lastVideoTime;
 
   if (
+    !isProcessingFrame &&
+    timeSinceLastInference >= 30 &&
     el.video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
-    el.video.videoWidth > 0 &&
-    el.video.videoHeight > 0 &&
-    el.video.currentTime !== lastVideoTime
+    isNewVideoFrame
   ) {
+    isProcessingFrame = true;
     lastVideoTime = el.video.currentTime;
+    lastInferenceTime = now;
+
     try {
-      const nowMs = performance.now();
-      const timestamp = Math.max(nowMs, (detectFrame.lastTimestamp || 0) + 1);
+      const timestamp = Math.max(now, (detectFrame.lastTimestamp || 0) + 1);
       detectFrame.lastTimestamp = timestamp;
+
       const result = handLandmarker.detectForVideo(el.video, timestamp);
+      consecutiveDetectionErrors = 0;
+
       const points = result.landmarks?.[0];
       if (points) {
         processGesture(points);
@@ -881,13 +929,25 @@ function detectFrame() {
         setTracking("ready", "Searching for hand");
       }
     } catch (error) {
-      console.error("[TRACKER] detection failed", error);
-      trackerReady = false;
-      setTone(el.cameraStatus, "error", "TRACKING ERROR");
-      setTracking("error", "Hand tracking error. Restart the camera.");
-      return;
+      consecutiveDetectionErrors++;
+      console.warn(`[TRACKER] Non-fatal frame glitch (${consecutiveDetectionErrors}):`, error);
+      // Reset timestamp if MediaPipe threw due to timestamp monotonicity
+      detectFrame.lastTimestamp = performance.now();
+
+      // Only give up if error persists continuously for dozens of frames
+      if (consecutiveDetectionErrors > 30) {
+        console.error("[TRACKER] Persistent detection failure:", error);
+        trackerReady = false;
+        setTone(el.cameraStatus, "error", "TRACKING ERROR");
+        setTracking("error", "Hand tracking error. Please restart camera.");
+        isProcessingFrame = false;
+        return;
+      }
+    } finally {
+      isProcessingFrame = false;
     }
   }
+
   animationFrame = requestAnimationFrame(detectFrame);
 }
 
@@ -1038,8 +1098,9 @@ async function startCamera() {
     const constraints = {
       video: {
         facingMode: "user",
-        width: { ideal: 1280 },
-        height: { ideal: 720 }
+        width: { ideal: 640, max: 1280 },
+        height: { ideal: 480, max: 720 },
+        frameRate: { ideal: 30, max: 30 }
       },
       audio: false
     };
