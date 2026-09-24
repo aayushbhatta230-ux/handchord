@@ -161,6 +161,7 @@ let noHandFrames = 0;
 let rawGesture = "SEARCHING";
 let stableGesture = "SEARCHING";
 let lastClassification = null;
+let lastChordTriggerTime = 0;
 
 let autoPlayEnabled = false;
 let autoPlayTimer = null;
@@ -198,53 +199,41 @@ class AudioEngine {
 
       // Master output bus with volume control
       this.masterBus = this.context.createGain();
-      this.masterBus.gain.value = 1.0;
+      this.masterBus.gain.value = 0.85;
 
       this.masterGain = this.context.createGain();
       this.masterGain.gain.value = this.volume;
 
       // Transparent limiter prevents digital clipping while preserving pure tone
       this.limiter = this.context.createDynamicsCompressor();
-      this.limiter.threshold.setValueAtTime(-2.0, this.context.currentTime);
-      this.limiter.knee.setValueAtTime(4, this.context.currentTime);
-      this.limiter.ratio.setValueAtTime(3.0, this.context.currentTime);
-      this.limiter.attack.setValueAtTime(0.003, this.context.currentTime);
-      this.limiter.release.setValueAtTime(0.08, this.context.currentTime);
+      this.limiter.threshold.setValueAtTime(-1.5, this.context.currentTime);
+      this.limiter.knee.setValueAtTime(6, this.context.currentTime);
+      this.limiter.ratio.setValueAtTime(2.5, this.context.currentTime);
+      this.limiter.attack.setValueAtTime(0.005, this.context.currentTime);
+      this.limiter.release.setValueAtTime(0.12, this.context.currentTime);
 
       this.masterBus.connect(this.limiter);
       this.limiter.connect(this.masterGain);
       this.masterGain.connect(this.context.destination);
 
-      // Gentle acoustic room ambience
+      // Clean, silky stereo acoustic space (zero white noise, zero buzz)
       try {
-        const sampleRate = this.context.sampleRate || 44100;
-        const decay = 0.9;
-        const length = Math.floor(sampleRate * decay);
-        const impulse = this.context.createBuffer(2, length, sampleRate);
+        const delay = this.context.createDelay(0.1);
+        delay.delayTime.setValueAtTime(0.028, this.context.currentTime);
 
-        for (let ch = 0; ch < 2; ch++) {
-          const data = impulse.getChannelData(ch);
-          for (let i = 0; i < length; i++) {
-            const t = i / sampleRate;
-            data[i] = (Math.random() * 2 - 1) * Math.exp(-t * 6.0) * 0.08;
-          }
-        }
+        const delayFilter = this.context.createBiquadFilter();
+        delayFilter.type = "lowpass";
+        delayFilter.frequency.setValueAtTime(1800, this.context.currentTime);
 
-        const preDelay = this.context.createDelay(0.06);
-        preDelay.delayTime.setValueAtTime(0.015, this.context.currentTime);
+        const delayGain = this.context.createGain();
+        delayGain.gain.setValueAtTime(0.12, this.context.currentTime);
 
-        this.reverbNode = this.context.createConvolver();
-        this.reverbNode.buffer = impulse;
-
-        this.reverbGain = this.context.createGain();
-        this.reverbGain.gain.setValueAtTime(0.05, this.context.currentTime);
-
-        this.masterBus.connect(preDelay);
-        preDelay.connect(this.reverbNode);
-        this.reverbNode.connect(this.reverbGain);
-        this.reverbGain.connect(this.masterGain);
-      } catch (revErr) {
-        console.warn("[AUDIO] Reverb setup skipped:", revErr);
+        this.masterBus.connect(delay);
+        delay.connect(delayFilter);
+        delayFilter.connect(delayGain);
+        delayGain.connect(this.masterGain);
+      } catch (spaceErr) {
+        console.warn("[AUDIO] Spatial effect skipped:", spaceErr);
       }
     } catch (err) {
       console.error("[AUDIO] Failed to initialize AudioContext:", err);
@@ -265,11 +254,11 @@ class AudioEngine {
     return this.context.state === "running";
   }
 
-  // Release currently sounding chord smoothly
-  release(seconds = 0.35) {
+  // Release currently sounding chord smoothly without clicks
+  release(seconds = 0.28) {
     if (!this.context || this.context.state === "suspended") return;
     const now = this.context.currentTime;
-    const releaseTime = Math.max(0.12, Math.min(seconds, 0.7));
+    const releaseTime = Math.max(0.10, Math.min(seconds, 0.6));
 
     const voicesToRelease = this.activeVoices;
     this.activeVoices = [];
@@ -307,7 +296,7 @@ class AudioEngine {
     this.lastChord = "MUTE";
   }
 
-  async play(chord, intensity = 0.85, rollSpeedMs = 14) {
+  async play(chord, intensity = 0.85, rollSpeedMs = 15) {
     if (!this.enabled || chord === "MUTE" || !CHORDS[chord]) return;
     this.initContext();
     if (!this.context) return;
@@ -320,69 +309,78 @@ class AudioEngine {
       }
     }
 
-    // Release old chord voices smoothly without abrupt cuts
-    this.release(0.35);
+    // Release old chord voices smoothly without clicks
+    this.release(0.28);
 
-    const now = this.context.currentTime + 0.012;
+    const now = this.context.currentTime + 0.015;
     const notes = CHORDS[chord].notes;
-    const roll = Math.min(0.022, Math.max(0.005, rollSpeedMs / 1000));
-    const intensityScale = Math.min(1.2, Math.max(0.7, intensity));
+    const roll = Math.min(0.024, Math.max(0.008, rollSpeedMs / 1000));
+    const intensityScale = Math.min(1.2, Math.max(0.65, intensity));
 
     const newVoices = notes.map((frequency, index) => {
-      // Clean acoustic tone generation:
-      // Frequencies < 120 Hz doubled to remain clearly audible without speaker rattles
-      const isLow = frequency < 120;
-      const playFreq = isLow ? frequency * 2 : frequency;
+      // Laptop speakers struggle under 115 Hz.
+      // Doubling sub-115Hz bass notes keeps them clean and audible without driver distortion:
+      const isSubBass = frequency < 115;
+      const fundamentalFreq = isSubBass ? frequency * 2 : frequency;
       const start = now + index * roll;
 
-      const osc = this.context.createOscillator();
-      const bodyOsc = this.context.createOscillator();
-      const gain = this.context.createGain();
+      // PURE ADDITIVE SINE SYNTHESIS (Zero Harsh Buzz):
+      // 1. Primary fundamental oscillator: Pure Sine wave
+      const fundamentalOsc = this.context.createOscillator();
+      fundamentalOsc.type = "sine";
+      fundamentalOsc.frequency.setValueAtTime(fundamentalFreq, start);
+
+      // 2. Harmonic chime oscillator: 2nd harmonic (octave chime) for glassy acoustic piano strike
+      const chimeOsc = this.context.createOscillator();
+      chimeOsc.type = "sine";
+      chimeOsc.frequency.setValueAtTime(fundamentalFreq * 2, start);
+
+      // Dedicated gains for natural hammer decay
+      const voiceGain = this.context.createGain();
+      const chimeGain = this.context.createGain();
+
+      // Individual lowpass filter keeps tone velvety
       const filter = this.context.createBiquadFilter();
-
-      // WARM ACOUSTIC SYNTHESIS (Zero Harsh Buzz):
-      // Primary: Warm triangle wave (natural wood piano & acoustic resonance)
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(playFreq, start);
-
-      // Secondary: Pure sine wave for smooth fundamental body
-      bodyOsc.type = "sine";
-      bodyOsc.frequency.setValueAtTime(frequency, start);
-
-      // Lowpass filter with low Q (0.7 = Butterworth natural acoustic roll-off)
-      // Eliminates all buzzing high frequencies while keeping chime clarity
       filter.type = "lowpass";
-      filter.Q.setValueAtTime(0.7, start);
-      const openFreq = Math.min(3200, playFreq * 4.5);
-      filter.frequency.setValueAtTime(openFreq, start);
-      filter.frequency.setTargetAtTime(Math.max(650, playFreq * 1.6), start + 0.03, 0.45);
+      filter.Q.setValueAtTime(0.5, start); // Bessel / smooth damping (zero resonance)
+      filter.frequency.setValueAtTime(Math.min(2600, fundamentalFreq * 4.0), start);
+      filter.frequency.setTargetAtTime(Math.max(500, fundamentalFreq * 1.5), start + 0.04, 0.4);
 
-      // Balanced, comfortable acoustic volume without clipping or buzzing
-      const peak = (isLow ? 0.26 : 0.22) * (intensityScale / 0.85);
-      const sustain = peak * 0.45;
+      // Voice level tuning
+      const peak = (isSubBass ? 0.22 : 0.18) * (intensityScale / 0.85);
 
-      osc.connect(filter);
-      bodyOsc.connect(filter);
-      filter.connect(gain);
-      gain.connect(this.masterBus);
+      // Connect fundamental
+      fundamentalOsc.connect(filter);
+      filter.connect(voiceGain);
+      voiceGain.connect(this.masterBus);
 
-      gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.linearRampToValueAtTime(peak, start + 0.018);
-      gain.gain.setTargetAtTime(sustain, start + 0.035, 0.70);
+      // Connect chime (tine)
+      chimeOsc.connect(chimeGain);
+      chimeGain.connect(filter);
 
-      try { osc.start(start); } catch {}
-      try { bodyOsc.start(start); } catch {}
+      // Fundamental envelope: Smooth strike -> natural acoustic singing decay
+      voiceGain.gain.setValueAtTime(0.0001, start);
+      voiceGain.gain.linearRampToValueAtTime(peak, start + 0.008);
+      voiceGain.gain.setTargetAtTime(0.00001, start + 0.06, 1.6); // Natural 2.5s fade
+
+      // Chime envelope: Fast hammer strike that fades in 120ms
+      chimeGain.gain.setValueAtTime(0.0001, start);
+      chimeGain.gain.linearRampToValueAtTime(peak * 0.25, start + 0.006);
+      chimeGain.gain.setTargetAtTime(0.00001, start + 0.03, 0.10);
+
+      try { fundamentalOsc.start(start); } catch {}
+      try { chimeOsc.start(start); } catch {}
 
       try {
-        osc.stop(start + 8);
-        bodyOsc.stop(start + 8);
+        fundamentalOsc.stop(start + 6.0);
+        chimeOsc.stop(start + 2.0);
       } catch {}
 
       return {
-        oscillators: [osc, bodyOsc],
-        gain,
+        oscillators: [fundamentalOsc, chimeOsc],
+        gain: voiceGain,
         startTime: start,
-        stopTime: start + 8
+        stopTime: start + 6.0
       };
     });
 
@@ -739,14 +737,15 @@ function processGesture(points) {
   candidateFrames++;
   const heldMs = now - candidateStartTime;
 
-  // Confirm gesture rapidly (2 frames or 35ms)
-  const isConfirmed = candidateFrames >= 2 || heldMs >= 35 || confidence >= 0.94;
+  // Stable confirmation: require at least 3 consecutive frames AND 65ms hold
+  // Prevents flutter / jitter while moving fingers between gestures
+  const isConfirmed = candidateFrames >= 3 && heldMs >= 65;
 
-  if (isConfirmed && gesture !== currentChord) {
+  if (isConfirmed && gesture !== currentChord && (now - lastChordTriggerTime >= 150)) {
+    lastChordTriggerTime = now;
     stableGesture = gesture;
     console.info(`[GESTURE CONFIRMED] ${gesture} in ${heldMs.toFixed(1)}ms`);
-    // Full amplified playback
-    updateChord(gesture, "gesture", 0.95, 12);
+    updateChord(gesture, "gesture", 0.85, 14);
   }
 
   el.gesture.textContent = CHORDS[gesture]?.gesture || rawGesture;
