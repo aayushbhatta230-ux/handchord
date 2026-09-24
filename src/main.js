@@ -166,7 +166,7 @@ class AudioEngine {
   constructor() {
     this.context = null;
     this.enabled = true;
-    this.volume = 2.0;
+    this.volume = 1.0;
     this.masterGain = null;
     this.masterBus = null;
     this.activeVoices = [];
@@ -175,7 +175,7 @@ class AudioEngine {
   }
 
   setVolume(vol) {
-    this.volume = Math.max(0, Math.min(3.5, vol));
+    this.volume = Math.max(0, Math.min(1.0, vol));
     if (this.masterGain && this.context) {
       this.masterGain.gain.setValueAtTime(this.volume, this.context.currentTime);
     }
@@ -194,27 +194,27 @@ class AudioEngine {
 
       // Master output bus with volume control
       this.masterBus = this.context.createGain();
-      this.masterBus.gain.value = 1.35;
+      this.masterBus.gain.value = 1.0;
 
       this.masterGain = this.context.createGain();
       this.masterGain.gain.value = this.volume;
 
-      // Transparent limiter prevents digital clipping while allowing loud punchy output
+      // Transparent limiter prevents digital clipping while preserving pure tone
       this.limiter = this.context.createDynamicsCompressor();
-      this.limiter.threshold.setValueAtTime(-0.5, this.context.currentTime);
-      this.limiter.knee.setValueAtTime(2, this.context.currentTime);
-      this.limiter.ratio.setValueAtTime(3.5, this.context.currentTime);
-      this.limiter.attack.setValueAtTime(0.001, this.context.currentTime);
-      this.limiter.release.setValueAtTime(0.06, this.context.currentTime);
+      this.limiter.threshold.setValueAtTime(-2.0, this.context.currentTime);
+      this.limiter.knee.setValueAtTime(4, this.context.currentTime);
+      this.limiter.ratio.setValueAtTime(3.0, this.context.currentTime);
+      this.limiter.attack.setValueAtTime(0.003, this.context.currentTime);
+      this.limiter.release.setValueAtTime(0.08, this.context.currentTime);
 
       this.masterBus.connect(this.limiter);
       this.limiter.connect(this.masterGain);
       this.masterGain.connect(this.context.destination);
 
-      // Ambient acoustic room shimmer
+      // Gentle acoustic room ambience
       try {
         const sampleRate = this.context.sampleRate || 44100;
-        const decay = 1.1;
+        const decay = 0.9;
         const length = Math.floor(sampleRate * decay);
         const impulse = this.context.createBuffer(2, length, sampleRate);
 
@@ -222,18 +222,18 @@ class AudioEngine {
           const data = impulse.getChannelData(ch);
           for (let i = 0; i < length; i++) {
             const t = i / sampleRate;
-            data[i] = (Math.random() * 2 - 1) * Math.exp(-t * 5.0) * 0.16;
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-t * 6.0) * 0.08;
           }
         }
 
         const preDelay = this.context.createDelay(0.06);
-        preDelay.delayTime.setValueAtTime(0.012, this.context.currentTime);
+        preDelay.delayTime.setValueAtTime(0.015, this.context.currentTime);
 
         this.reverbNode = this.context.createConvolver();
         this.reverbNode.buffer = impulse;
 
         this.reverbGain = this.context.createGain();
-        this.reverbGain.gain.setValueAtTime(0.08, this.context.currentTime);
+        this.reverbGain.gain.setValueAtTime(0.05, this.context.currentTime);
 
         this.masterBus.connect(preDelay);
         preDelay.connect(this.reverbNode);
@@ -302,7 +302,7 @@ class AudioEngine {
     this.lastChord = "MUTE";
   }
 
-  async play(chord, intensity = 0.95, rollSpeedMs = 12) {
+  async play(chord, intensity = 0.85, rollSpeedMs = 14) {
     if (!this.enabled || chord === "MUTE" || !CHORDS[chord]) return;
     this.initContext();
     if (!this.context) return;
@@ -316,17 +316,17 @@ class AudioEngine {
     }
 
     // Release old chord voices smoothly without abrupt cuts
-    this.release(0.32);
+    this.release(0.35);
 
     const now = this.context.currentTime + 0.012;
     const notes = CHORDS[chord].notes;
     const roll = Math.min(0.022, Math.max(0.005, rollSpeedMs / 1000));
-    const intensityScale = Math.min(1.4, Math.max(0.6, intensity));
+    const intensityScale = Math.min(1.2, Math.max(0.7, intensity));
 
     const newVoices = notes.map((frequency, index) => {
-      // Laptop speakers struggle under 130 Hz.
-      // Doubling sub-130Hz bass notes brings them into clear acoustic range:
-      const isLow = frequency < 130;
+      // Clean acoustic tone generation:
+      // Frequencies < 120 Hz doubled to remain clearly audible without speaker rattles
+      const isLow = frequency < 120;
       const playFreq = isLow ? frequency * 2 : frequency;
       const start = now + index * roll;
 
@@ -335,25 +335,26 @@ class AudioEngine {
       const gain = this.context.createGain();
       const filter = this.context.createBiquadFilter();
 
-      // Sawtooth waveform filtered by resonant lowpass filter:
-      // Industry gold-standard for bright acoustic guitar and electric piano!
-      osc.type = "sawtooth";
+      // WARM ACOUSTIC SYNTHESIS (Zero Harsh Buzz):
+      // Primary: Warm triangle wave (natural wood piano & acoustic resonance)
+      osc.type = "triangle";
       osc.frequency.setValueAtTime(playFreq, start);
 
-      // Warm triangle sub-body
-      bodyOsc.type = "triangle";
-      bodyOsc.frequency.setValueAtTime(isLow ? frequency : playFreq * 0.5, start);
+      // Secondary: Pure sine wave for smooth fundamental body
+      bodyOsc.type = "sine";
+      bodyOsc.frequency.setValueAtTime(frequency, start);
 
-      // Resonant filter gives singing acoustic tone that cuts through laptop speakers
+      // Lowpass filter with low Q (0.7 = Butterworth natural acoustic roll-off)
+      // Eliminates all buzzing high frequencies while keeping chime clarity
       filter.type = "lowpass";
-      filter.Q.setValueAtTime(2.0, start);
-      const openFreq = Math.min(8500, playFreq * 8.0);
+      filter.Q.setValueAtTime(0.7, start);
+      const openFreq = Math.min(3200, playFreq * 4.5);
       filter.frequency.setValueAtTime(openFreq, start);
-      filter.frequency.setTargetAtTime(Math.max(1100, playFreq * 2.8), start + 0.02, 0.70);
+      filter.frequency.setTargetAtTime(Math.max(650, playFreq * 1.6), start + 0.03, 0.45);
 
-      // Peak volume tuned for loud, punchy playback
-      const peak = (isLow ? 0.48 : 0.42) * (intensityScale / 0.85);
-      const sustain = peak * 0.60;
+      // Balanced, comfortable acoustic volume without clipping or buzzing
+      const peak = (isLow ? 0.26 : 0.22) * (intensityScale / 0.85);
+      const sustain = peak * 0.45;
 
       osc.connect(filter);
       bodyOsc.connect(filter);
@@ -361,8 +362,8 @@ class AudioEngine {
       gain.connect(this.masterBus);
 
       gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.linearRampToValueAtTime(peak, start + 0.012);
-      gain.gain.setTargetAtTime(sustain, start + 0.03, 0.80);
+      gain.gain.linearRampToValueAtTime(peak, start + 0.018);
+      gain.gain.setTargetAtTime(sustain, start + 0.035, 0.70);
 
       try { osc.start(start); } catch {}
       try { bodyOsc.start(start); } catch {}
