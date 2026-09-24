@@ -346,6 +346,33 @@ h1 {
   color: var(--text-bright);
 }
 
+.camera-hud-badge {
+  position: absolute;
+  z-index: 3;
+  bottom: 14px;
+  right: 14px;
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: rgba(20, 19, 18, 0.90);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--amber-hover);
+  font-family: "Space Mono", monospace;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  pointer-events: none;
+  transform: none !important;
+}
+
+.camera-hud-badge.hidden, .camera-hud-badge[hidden] {
+  display: none !important;
+}
+
 .gesture-debug {
   position: absolute;
   bottom: 12px;
@@ -501,32 +528,45 @@ h1 {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 16px;
-  padding: 10px 14px;
+  padding: 8px 12px;
   border: 1px solid rgba(245, 158, 11, 0.2);
   border-radius: 12px;
   background: rgba(245, 158, 11, 0.04);
 }
 
-.song-mode span {
-  display: block;
-  color: var(--amber);
-  font-family: "Space Mono", monospace;
-  font-size: 9px;
-  letter-spacing: 0.08em;
+.song-selector-wrap {
+  flex: 1;
+  min-width: 0;
 }
 
-.song-mode strong {
-  display: inline-block;
-  margin: 2px 6px 0 0;
-  font-family: "Outfit", sans-serif;
-  font-size: 14px;
-  font-weight: 700;
+.song-select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  max-width: 320px;
+  padding: 7px 32px 7px 12px;
+  background: rgba(26, 24, 22, 0.90) url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23f59e0b%22%20stroke-width%3D%222.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E") no-repeat right 10px center;
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-radius: 8px;
   color: var(--text-bright);
+  font-family: "Outfit", sans-serif;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s ease;
 }
 
-.song-mode small {
-  color: var(--muted);
-  font-size: 11px;
+.song-select:hover, .song-select:focus {
+  border-color: var(--amber);
+  background-color: rgba(35, 32, 29, 0.95);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
+}
+
+.song-select option {
+  background: #1c1917;
+  color: #f5f2eb;
+  padding: 8px;
 }
 
 .song-mode button {

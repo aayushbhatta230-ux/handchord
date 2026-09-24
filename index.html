@@ -14,7 +14,6 @@
         <div class="brand">
           <div class="brand-badge"><span>🎸</span> AIR INSTRUMENT</div>
           <h1>HandChord</h1>
-          <p>Wave your hands to play acoustic chords freely in thin air</p>
         </div>
         <div class="header-status" id="app-status" data-tone="offline"><span></span><b>OFFLINE</b></div>
       </header>
@@ -51,6 +50,9 @@
               <span>DETECTED POSE</span>
               <strong id="detected-gesture">WAITING</strong>
             </div>
+            <div class="camera-hud-badge" id="camera-hud-badge" hidden>
+              <span id="hud-text"></span>
+            </div>
             <div class="gesture-debug" id="gesture-debug" hidden></div>
           </div>
           <div class="vision-footer">
@@ -77,10 +79,17 @@
             <button class="sound-button" id="sound-toggle" type="button" aria-pressed="true">SOUND ON</button>
           </div>
           <div class="song-mode">
-            <div>
-              <span>NOW ARRANGED</span>
-              <strong>IRIS</strong>
-              <small>Goo Goo Dolls</small>
+            <div class="song-selector-wrap">
+              <select id="song-select" class="song-select" aria-label="Select song">
+                <option value="iris">Iris — Goo Goo Dolls</option>
+                <option value="perfect">Perfect — Ed Sheeran</option>
+                <option value="nightChanges">Night Changes — One Direction</option>
+                <option value="sadhana">Sadhana — John Chamling Rai</option>
+                <option value="koChaRa">Ko Cha Ra — John Chamling Rai</option>
+                <option value="mayaLe">Maya Le — John Chamling Rai</option>
+                <option value="hawaLe">Hawa Le — John Chamling Rai</option>
+                <option value="timiBahek">Timi Bahek — John Chamling Rai</option>
+              </select>
             </div>
             <button id="auto-play" type="button" aria-pressed="false">AUTO PLAY</button>
           </div>
