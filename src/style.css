@@ -1,4 +1,4 @@
-﻿@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@500;600;700;800&display=swap");
 
 /* Global & HandChord Base Styles */
 :root {
@@ -239,6 +239,28 @@ h1 {
   display: block;
   margin-top: 5px;
   font-size: 14px;
+}
+
+.gesture-debug {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  right: 12px;
+  z-index: 3;
+  padding: 6px 10px;
+  background: rgba(9, 9, 13, 0.88);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-family: "DM Mono", monospace;
+  font-size: 9px;
+  color: var(--text);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.gesture-debug span {
+  color: var(--muted);
 }
 
 .vision-footer {

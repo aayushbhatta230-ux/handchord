@@ -1,4 +1,4 @@
-﻿import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
+import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
 import "./style.css";
 
 const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
@@ -165,6 +165,7 @@ class AudioEngine {
     this.context = null;
     this.enabled = true;
     this.masterBus = null;
+    this.limiter = null;
     this.reverbNode = null;
     this.reverbGain = null;
     this.activeVoices = [];
@@ -175,65 +176,97 @@ class AudioEngine {
   initContext() {
     if (this.context) return;
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtx) throw new Error("Web Audio API is not supported.");
-
-    this.context = new AudioCtx();
-
-    // Clean piano-style master path. No compressor pumping and no delay feedback.
-    this.masterBus = this.context.createGain();
-    this.masterBus.gain.value = 0.45;
-    this.masterBus.connect(this.context.destination);
-
-    // Very subtle small-room reverb: enough air to avoid a dry synthetic sound,
-    // but quiet enough that chord changes stay clearly separated.
-    const preDelay = this.context.createDelay(0.08);
-    preDelay.delayTime.value = 0.018;
-
-    this.reverbNode = this.context.createConvolver();
-    this.reverbGain = this.context.createGain();
-    this.reverbGain.gain.value = 0.055;
-
-    const sampleRate = this.context.sampleRate;
-    const decay = 1.15;
-    const length = Math.floor(sampleRate * decay);
-    const impulse = this.context.createBuffer(2, length, sampleRate);
-
-    for (let ch = 0; ch < 2; ch++) {
-      const data = impulse.getChannelData(ch);
-      for (let i = 0; i < length; i++) {
-        const t = i / sampleRate;
-        // Smooth, low-level room tail; no audible repeated echo.
-        data[i] = (Math.random() * 2 - 1) * Math.exp(-t * 5.2) * 0.16;
-      }
+    if (!AudioCtx) {
+      console.warn("[AUDIO] Web Audio API is not supported in this browser.");
+      return;
     }
 
-    this.reverbNode.buffer = impulse;
-    this.masterBus.connect(preDelay);
-    preDelay.connect(this.reverbNode);
-    this.reverbNode.connect(this.reverbGain);
-    this.reverbGain.connect(this.context.destination);
+    try {
+      this.context = new AudioCtx();
+
+      // Master output bus with solid output headroom
+      this.masterBus = this.context.createGain();
+      this.masterBus.gain.value = 0.85;
+
+      // Dynamics compressor acts as a transparent master limiter to prevent clipping
+      this.limiter = this.context.createDynamicsCompressor();
+      this.limiter.threshold.setValueAtTime(-8, this.context.currentTime);
+      this.limiter.knee.setValueAtTime(6, this.context.currentTime);
+      this.limiter.ratio.setValueAtTime(14, this.context.currentTime);
+      this.limiter.attack.setValueAtTime(0.003, this.context.currentTime);
+      this.limiter.release.setValueAtTime(0.18, this.context.currentTime);
+
+      this.masterBus.connect(this.limiter);
+      this.limiter.connect(this.context.destination);
+
+      // Ambient acoustic reverb simulation
+      try {
+        const sampleRate = this.context.sampleRate || 44100;
+        const decay = 1.2;
+        const length = Math.floor(sampleRate * decay);
+        const impulse = this.context.createBuffer(2, length, sampleRate);
+
+        for (let ch = 0; ch < 2; ch++) {
+          const data = impulse.getChannelData(ch);
+          for (let i = 0; i < length; i++) {
+            const t = i / sampleRate;
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-t * 5.0) * 0.18;
+          }
+        }
+
+        const preDelay = this.context.createDelay(0.06);
+        preDelay.delayTime.setValueAtTime(0.018, this.context.currentTime);
+
+        this.reverbNode = this.context.createConvolver();
+        this.reverbNode.buffer = impulse;
+
+        this.reverbGain = this.context.createGain();
+        this.reverbGain.gain.setValueAtTime(0.08, this.context.currentTime);
+
+        this.masterBus.connect(preDelay);
+        preDelay.connect(this.reverbNode);
+        this.reverbNode.connect(this.reverbGain);
+        this.reverbGain.connect(this.limiter);
+      } catch (revErr) {
+        console.warn("[AUDIO] Reverb setup skipped:", revErr);
+      }
+    } catch (err) {
+      console.error("[AUDIO] Failed to initialize AudioContext:", err);
+    }
   }
 
   async unlock() {
     this.initContext();
-    if (this.context.state === "suspended") await this.context.resume();
+    if (!this.context) return false;
+    if (this.context.state === "suspended") {
+      try {
+        await this.context.resume();
+        console.info("[AUDIO] AudioContext resumed successfully.");
+      } catch (err) {
+        console.warn("[AUDIO] Context resume error:", err);
+      }
+    }
+    return this.context.state === "running";
   }
 
-  // Release ONLY the currently sounding chord. Fading voices are never replayed.
-  release(seconds = 0.75) {
-    if (!this.context) return;
+  // Release currently sounding chord smoothly
+  release(seconds = 0.5) {
+    if (!this.context || this.context.state === "suspended") return;
     const now = this.context.currentTime;
-    const releaseTime = Math.max(0.18, Math.min(seconds, 1.4));
+    const releaseTime = Math.max(0.15, Math.min(seconds, 1.2));
 
     for (const voice of this.activeVoices) {
       try {
         const gain = voice.gain.gain;
         gain.cancelScheduledValues(now);
-        const current = Math.max(gain.value, 0.00001);
-        gain.setValueAtTime(current, now);
-        gain.exponentialRampToValueAtTime(0.00001, now + releaseTime);
+        const currentVal = Math.max(gain.value, 0.0001);
+        gain.setValueAtTime(currentVal, now);
+        gain.setTargetAtTime(0.00001, now, releaseTime / 3.2);
+
         voice.oscillators.forEach((osc) => {
-          try { osc.stop(now + releaseTime + 0.03); } catch {}
+          try {
+            osc.stop(now + releaseTime + 0.05);
+          } catch {}
         });
       } catch {}
     }
@@ -257,22 +290,26 @@ class AudioEngine {
     this.lastChord = "MUTE";
   }
 
-  play(chord, intensity = 0.50, rollSpeedMs = 8) {
+  async play(chord, intensity = 0.65, rollSpeedMs = 12) {
     if (!this.enabled || chord === "MUTE" || !CHORDS[chord]) return;
     this.initContext();
+    if (!this.context) return;
 
     if (this.context.state === "suspended") {
-      this.context.resume().catch(() => {});
+      try {
+        await this.context.resume();
+      } catch (err) {
+        console.warn("[AUDIO] Waiting for user interaction to resume AudioContext:", err);
+      }
     }
 
-    // Never layer the new chord on top of the old chord indefinitely.
-    // A short release creates a noticeable but smooth musical transition.
-    this.release(0.42);
+    // Release old chord voices smoothly without abrupt cuts
+    this.release(0.35);
 
-    const now = this.context.currentTime + 0.004;
+    const now = this.context.currentTime + 0.012;
     const notes = CHORDS[chord].notes;
-    const roll = Math.min(0.012, Math.max(0.003, rollSpeedMs / 1000));
-    const intensityScale = Math.min(0.58, Math.max(0.28, intensity));
+    const roll = Math.min(0.024, Math.max(0.005, rollSpeedMs / 1000));
+    const intensityScale = Math.min(1.0, Math.max(0.3, intensity));
 
     const newVoices = notes.map((frequency, index) => {
       const isBass = index < 2;
@@ -283,51 +320,52 @@ class AudioEngine {
       const gain = this.context.createGain();
       const filter = this.context.createBiquadFilter();
 
-      // Piano-like harmonic body: triangle fundamental + very quiet octave.
+      // Primary oscillator: warm triangle for acoustic body
       osc.type = isBass ? "triangle" : "sine";
-      bodyOsc.type = "sine";
       osc.frequency.setValueAtTime(frequency, start);
-      bodyOsc.frequency.setValueAtTime(frequency * 2, start);
 
+      // Body oscillator: subtle harmonic overtone with detune for acoustic shimmer
+      bodyOsc.type = "triangle";
+      bodyOsc.frequency.setValueAtTime(frequency * (isBass ? 2.0 : 1.0), start);
+      bodyOsc.detune.setValueAtTime(isBass ? 3 : 5, start);
+
+      const overtoneGain = this.context.createGain();
+      overtoneGain.gain.setValueAtTime(isBass ? 0.22 : 0.18, start);
+
+      // Dynamic acoustic lowpass filter (pluck envelope)
       filter.type = "lowpass";
-      filter.Q.value = 0.45;
-      filter.frequency.setValueAtTime(
-        Math.min(isBass ? 2600 : 5200, frequency * (isBass ? 4.0 : 7.0)),
-        start
-      );
-      filter.frequency.exponentialRampToValueAtTime(
-        Math.max(900, frequency * 2.1),
-        start + 0.45
-      );
+      filter.Q.setValueAtTime(0.6, start);
+      const openFreq = Math.min(5200, frequency * (isBass ? 5.0 : 8.0));
+      filter.frequency.setValueAtTime(openFreq, start);
+      filter.frequency.setTargetAtTime(Math.max(500, frequency * 2.2), start + 0.02, 0.25);
 
-      // Low output level prevents six notes from becoming an oversized wall of sound.
-      const peak = (isBass ? 0.0375 : 0.027) * intensityScale / 0.50;
-      const sustain = peak * (isBass ? 0.38 : 0.42);
-      const overtone = this.context.createGain();
-      overtone.gain.setValueAtTime(isBass ? 0.045 : 0.025, start);
+      // Amplitude Envelope (ADSR tuned for responsive acoustic strumming)
+      const peak = (isBass ? 0.22 : 0.16) * (intensityScale / 0.65);
+      const sustain = peak * (isBass ? 0.38 : 0.32);
 
       osc.connect(filter);
-      bodyOsc.connect(overtone);
-      overtone.connect(filter);
+      bodyOsc.connect(overtoneGain);
+      overtoneGain.connect(filter);
       filter.connect(gain);
       gain.connect(this.masterBus);
 
-      gain.gain.setValueAtTime(0.00001, start);
-      gain.gain.linearRampToValueAtTime(peak, start + 0.018);
-      gain.gain.exponentialRampToValueAtTime(
-        Math.max(0.0001, sustain),
-        start + 0.32
-      );
-      gain.gain.setTargetAtTime(sustain, start + 0.38, isBass ? 1.0 : 0.82);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.linearRampToValueAtTime(peak, start + 0.014);
+      gain.gain.setTargetAtTime(sustain, start + 0.02, 0.45);
 
       try { osc.start(start); } catch {}
       try { bodyOsc.start(start); } catch {}
+
+      try {
+        osc.stop(start + 8);
+        bodyOsc.stop(start + 8);
+      } catch {}
 
       return {
         oscillators: [osc, bodyOsc],
         gain,
         startTime: start,
-        stopTime: start + 12
+        stopTime: start + 8
       };
     });
 
@@ -396,11 +434,11 @@ function setCameraState(newState, details = {}) {
 
     case CAMERA.STARTING:
       el.start.disabled = true;
-      el.start.textContent = "STARTINGâ€¦";
+      el.start.textContent = "STARTING...";
       el.start.classList.remove("is-running");
       setTone(el.appStatus, "offline", "STARTING");
       setTone(el.cameraStatus, "idle", "STARTING CAMERA");
-      setTracking("idle", "Accessing cameraâ€¦");
+      setTracking("idle", "Accessing camera...");
       hideError();
       break;
 
@@ -410,7 +448,7 @@ function setCameraState(newState, details = {}) {
       el.start.classList.add("is-running");
       setTone(el.appStatus, "ready", "READY");
       setTone(el.cameraStatus, "ready", "CAMERA READY");
-      setTracking("ready", trackerReady ? "Searching for hand" : "Loading hand trackingâ€¦");
+      setTracking("ready", trackerReady ? "Searching for hand" : "Loading hand tracking...");
       el.empty.classList.add("hidden");
       hideError();
       el.video.style.display = "block";
@@ -449,15 +487,17 @@ function updateDebug() {
   if (!DEBUG_ENABLED || !el.debug) return;
   el.debug.hidden = false;
   const states = lastClassification?.states || {};
-  el.debug.innerHTML = `<b>DEBUG</b><span>Detected: ${rawGesture}</span><span>Stable: ${stableGesture}</span><span>Confidence: ${lastClassification?.confidence?.toFixed(2) || "0.00"}</span><span>Thumb: ${states.thumb || "â€”"} Â· Index: ${states.index || "â€”"}</span><span>Middle: ${states.middle || "â€”"} Â· Ring: ${states.ring || "â€”"} Â· Pinky: ${states.pinky || "â€”"}</span><span>Mapped chord: ${stableGesture in CHORDS ? stableGesture : "â€”"}</span>`;
+  el.debug.innerHTML = `<b>DEBUG</b><span>Detected: ${rawGesture}</span><span>Stable: ${stableGesture}</span><span>Confidence: ${lastClassification?.confidence?.toFixed(2) || "0.00"}</span><span>Thumb: ${states.thumb || "—"} · Index: ${states.index || "—"}</span><span>Middle: ${states.middle || "—"} · Ring: ${states.ring || "—"} · Pinky: ${states.pinky || "—"}</span><span>Mapped chord: ${stableGesture in CHORDS ? stableGesture : "—"}</span>`;
 }
 
-function updateChord(chord, source = "gesture", intensity = 0.58, rollSpeed = 20, subtitle = null) {
-  if (!CHORDS[chord] || (chord === currentChord && source !== "auto")) return;
+function updateChord(chord, source = "gesture", intensity = 0.65, rollSpeed = 16, subtitle = null) {
+  if (!CHORDS[chord]) return;
+  // If controlled by hand gesture, do not re-trigger the exact same chord continuously while the hand is held
+  if (source === "gesture" && chord === currentChord) return;
   currentChord = chord;
 
   if (chord === "MUTE") {
-    audio.release(0.9);
+    audio.release(0.8);
   } else {
     audio.play(chord, intensity, rollSpeed);
   }
@@ -747,7 +787,10 @@ function detectFrame() {
   ) {
     lastVideoTime = el.video.currentTime;
     try {
-      const result = handLandmarker.detectForVideo(el.video, performance.now());
+      const nowMs = performance.now();
+      const timestamp = Math.max(nowMs, (detectFrame.lastTimestamp || 0) + 1);
+      detectFrame.lastTimestamp = timestamp;
+      const result = handLandmarker.detectForVideo(el.video, timestamp);
       const points = result.landmarks?.[0];
       if (points) {
         drawHand(points);
@@ -1011,7 +1054,7 @@ async function startCamera() {
 
     // Only after camera is LIVE, start hand tracking
     try {
-      setTracking("ready", "Loading hand trackingâ€¦");
+      setTracking("ready", "Loading hand tracking...");
       await initializeTracker();
       setTone(el.cameraStatus, "ready", "TRACKING READY");
       setTracking("ready", "Searching for hand");
@@ -1048,7 +1091,16 @@ function stopCamera() {
   console.info("[CAMERA] stopped");
 }
 
-el.start.addEventListener("click", () => {
+// Global user interaction listener to reliably unlock Web Audio in modern browsers
+const unlockAudioOnce = () => {
+  audio.unlock().catch(() => {});
+};
+["pointerdown", "touchstart", "click", "keydown"].forEach((evt) => {
+  window.addEventListener(evt, unlockAudioOnce, { passive: true });
+});
+
+el.start.addEventListener("click", async () => {
+  await audio.unlock();
   if (cameraState === CAMERA.LIVE || cameraState === CAMERA.STARTING) {
     stopCamera();
   } else {
@@ -1056,17 +1108,30 @@ el.start.addEventListener("click", () => {
   }
 });
 
-el.keys.forEach((key) => key.addEventListener("click", () => updateChord(key.dataset.chord, "keyboard")));
-el.mute.addEventListener("click", () => updateChord("MUTE", "keyboard"));
-el.autoPlay.addEventListener("click", () => setAutoPlay(!autoPlayEnabled));
+el.keys.forEach((key) =>
+  key.addEventListener("click", async () => {
+    await audio.unlock();
+    updateChord(key.dataset.chord, "keyboard");
+  })
+);
+
+el.mute.addEventListener("click", async () => {
+  await audio.unlock();
+  updateChord("MUTE", "keyboard");
+});
+
+el.autoPlay.addEventListener("click", async () => {
+  await audio.unlock();
+  setAutoPlay(!autoPlayEnabled);
+});
+
 el.sound.addEventListener("click", async () => {
+  await audio.unlock();
   audio.enabled = !audio.enabled;
   el.sound.classList.toggle("is-off", !audio.enabled);
   el.sound.setAttribute("aria-pressed", String(audio.enabled));
   el.sound.textContent = audio.enabled ? "SOUND ON" : "SOUND OFF";
   if (!audio.enabled) audio.release(0.5);
-  // Do not replay the current chord just because SOUND ON was pressed.
-  // The next gesture/key press will intentionally trigger the next sound.
 });
 
 setCameraState(CAMERA.IDLE);
