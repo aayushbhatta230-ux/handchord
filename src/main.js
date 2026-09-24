@@ -184,25 +184,30 @@ class AudioEngine {
     try {
       this.context = new AudioCtx();
 
-      // Master output bus with solid output headroom
+      // Master output bus with strong output drive
       this.masterBus = this.context.createGain();
-      this.masterBus.gain.value = 0.85;
+      this.masterBus.gain.value = 1.45;
 
-      // Dynamics compressor acts as a transparent master limiter to prevent clipping
+      // Studio-style mastering limiter prevents digital clipping while allowing loud output
       this.limiter = this.context.createDynamicsCompressor();
-      this.limiter.threshold.setValueAtTime(-8, this.context.currentTime);
-      this.limiter.knee.setValueAtTime(6, this.context.currentTime);
-      this.limiter.ratio.setValueAtTime(14, this.context.currentTime);
-      this.limiter.attack.setValueAtTime(0.003, this.context.currentTime);
-      this.limiter.release.setValueAtTime(0.18, this.context.currentTime);
+      this.limiter.threshold.setValueAtTime(-5, this.context.currentTime);
+      this.limiter.knee.setValueAtTime(4, this.context.currentTime);
+      this.limiter.ratio.setValueAtTime(18, this.context.currentTime);
+      this.limiter.attack.setValueAtTime(0.002, this.context.currentTime);
+      this.limiter.release.setValueAtTime(0.12, this.context.currentTime);
+
+      // Output booster node for punchy speaker playback
+      this.outputBooster = this.context.createGain();
+      this.outputBooster.gain.value = 1.35;
 
       this.masterBus.connect(this.limiter);
-      this.limiter.connect(this.context.destination);
+      this.limiter.connect(this.outputBooster);
+      this.outputBooster.connect(this.context.destination);
 
-      // Ambient acoustic reverb simulation
+      // Ambient acoustic room shimmer
       try {
         const sampleRate = this.context.sampleRate || 44100;
-        const decay = 1.2;
+        const decay = 1.0;
         const length = Math.floor(sampleRate * decay);
         const impulse = this.context.createBuffer(2, length, sampleRate);
 
@@ -210,18 +215,18 @@ class AudioEngine {
           const data = impulse.getChannelData(ch);
           for (let i = 0; i < length; i++) {
             const t = i / sampleRate;
-            data[i] = (Math.random() * 2 - 1) * Math.exp(-t * 5.0) * 0.18;
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-t * 5.5) * 0.15;
           }
         }
 
         const preDelay = this.context.createDelay(0.06);
-        preDelay.delayTime.setValueAtTime(0.018, this.context.currentTime);
+        preDelay.delayTime.setValueAtTime(0.015, this.context.currentTime);
 
         this.reverbNode = this.context.createConvolver();
         this.reverbNode.buffer = impulse;
 
         this.reverbGain = this.context.createGain();
-        this.reverbGain.gain.setValueAtTime(0.08, this.context.currentTime);
+        this.reverbGain.gain.setValueAtTime(0.07, this.context.currentTime);
 
         this.masterBus.connect(preDelay);
         preDelay.connect(this.reverbNode);
@@ -290,7 +295,7 @@ class AudioEngine {
     this.lastChord = "MUTE";
   }
 
-  async play(chord, intensity = 0.65, rollSpeedMs = 12) {
+  async play(chord, intensity = 0.75, rollSpeedMs = 12) {
     if (!this.enabled || chord === "MUTE" || !CHORDS[chord]) return;
     this.initContext();
     if (!this.context) return;
@@ -309,7 +314,7 @@ class AudioEngine {
     const now = this.context.currentTime + 0.012;
     const notes = CHORDS[chord].notes;
     const roll = Math.min(0.024, Math.max(0.005, rollSpeedMs / 1000));
-    const intensityScale = Math.min(1.0, Math.max(0.3, intensity));
+    const intensityScale = Math.min(1.2, Math.max(0.5, intensity));
 
     const newVoices = notes.map((frequency, index) => {
       const isBass = index < 2;
@@ -320,28 +325,28 @@ class AudioEngine {
       const gain = this.context.createGain();
       const filter = this.context.createBiquadFilter();
 
-      // Primary oscillator: warm triangle for acoustic body
-      osc.type = isBass ? "triangle" : "sine";
+      // Primary oscillator: warm triangle for acoustic fundamental
+      osc.type = isBass ? "triangle" : "triangle";
       osc.frequency.setValueAtTime(frequency, start);
 
-      // Body oscillator: subtle harmonic overtone with detune for acoustic shimmer
-      bodyOsc.type = "triangle";
+      // Body oscillator: adds harmonic punch and crisp acoustic presence
+      bodyOsc.type = isBass ? "sine" : "sawtooth";
       bodyOsc.frequency.setValueAtTime(frequency * (isBass ? 2.0 : 1.0), start);
-      bodyOsc.detune.setValueAtTime(isBass ? 3 : 5, start);
+      bodyOsc.detune.setValueAtTime(isBass ? 4 : 6, start);
 
       const overtoneGain = this.context.createGain();
-      overtoneGain.gain.setValueAtTime(isBass ? 0.22 : 0.18, start);
+      overtoneGain.gain.setValueAtTime(isBass ? 0.35 : 0.25, start);
 
-      // Dynamic acoustic lowpass filter (pluck envelope)
+      // Dynamic lowpass filter with generous presence cutoff for clear laptop speaker projection
       filter.type = "lowpass";
-      filter.Q.setValueAtTime(0.6, start);
-      const openFreq = Math.min(5200, frequency * (isBass ? 5.0 : 8.0));
+      filter.Q.setValueAtTime(0.7, start);
+      const openFreq = Math.min(8000, frequency * (isBass ? 6.5 : 10.0));
       filter.frequency.setValueAtTime(openFreq, start);
-      filter.frequency.setTargetAtTime(Math.max(500, frequency * 2.2), start + 0.02, 0.25);
+      filter.frequency.setTargetAtTime(Math.max(700, frequency * 2.8), start + 0.03, 0.45);
 
-      // Amplitude Envelope (ADSR tuned for responsive acoustic strumming)
-      const peak = (isBass ? 0.22 : 0.16) * (intensityScale / 0.65);
-      const sustain = peak * (isBass ? 0.38 : 0.32);
+      // Amplified Amplitude Envelope (loud, punchy attack with rich sustained body)
+      const peak = (isBass ? 0.42 : 0.35) * (intensityScale / 0.75);
+      const sustain = peak * (isBass ? 0.45 : 0.38);
 
       osc.connect(filter);
       bodyOsc.connect(overtoneGain);
@@ -350,8 +355,8 @@ class AudioEngine {
       gain.connect(this.masterBus);
 
       gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.linearRampToValueAtTime(peak, start + 0.014);
-      gain.gain.setTargetAtTime(sustain, start + 0.02, 0.45);
+      gain.gain.linearRampToValueAtTime(peak, start + 0.015);
+      gain.gain.setTargetAtTime(sustain, start + 0.03, 0.65);
 
       try { osc.start(start); } catch {}
       try { bodyOsc.start(start); } catch {}
