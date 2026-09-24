@@ -1,17 +1,36 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap");
 
-/* Global & HandChord Base Styles */
+/* ==========================================================================
+   HandChord — Humanistic Warm Studio Design System
+   ========================================================================== */
 :root {
-  --bg: #09090d;
-  --panel: #121218;
-  --line: rgba(255, 255, 255, 0.1);
-  --text: #f7f7fa;
-  --muted: #92929f;
-  --purple: #9e80ff;
-  --cyan: #00f0ff;
-  --gold: #ff9a3c;
-  --green: #73dfb8;
-  --red: #ee7181;
+  /* Warm Wood & Tactile Studio Palette */
+  --bg: #141312;
+  --panel: #1b1917;
+  --panel-elevated: #23201d;
+  --panel-head: #171614;
+  --line: rgba(245, 235, 220, 0.08);
+  --line-strong: rgba(245, 235, 220, 0.16);
+  --text: #f5f2eb;
+  --text-bright: #ffffff;
+  --muted: #a8a29e;
+  --faint: #78716c;
+
+  /* Warm Organic Accents */
+  --amber: #f59e0b;
+  --amber-hover: #fbbf24;
+  --amber-glow: rgba(245, 158, 11, 0.35);
+  --amber-soft: rgba(245, 158, 11, 0.12);
+  --terracotta: #e07a5f;
+  --terracotta-soft: rgba(224, 122, 95, 0.14);
+  --sage: #81b29a;
+  --coral: #f28482;
+
+  /* Natural Ivory Piano Keys */
+  --ivory-top: #fdfbf7;
+  --ivory-base: #f0ece1;
+  --ivory-shadow: #d8d1c2;
+  --key-rim: #2d2925;
 }
 
 * {
@@ -23,9 +42,13 @@ html, body {
   margin: 0;
   min-height: 100%;
   min-height: 100dvh;
-  background: radial-gradient(90% 42% at 50% -10%, rgba(132, 96, 255, 0.15), transparent 65%), var(--bg);
+  background:
+    radial-gradient(100% 55% at 50% -10%, rgba(245, 158, 11, 0.09), transparent 60%),
+    radial-gradient(60% 40% at 85% 15%, rgba(224, 122, 95, 0.06), transparent 50%),
+    var(--bg);
   color: var(--text);
-  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 body {
@@ -38,10 +61,11 @@ button {
   font: inherit;
   cursor: pointer;
   touch-action: manipulation;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 button:focus-visible {
-  outline: 2px solid var(--purple);
+  outline: 2px solid var(--amber);
   outline-offset: 3px;
 }
 
@@ -49,100 +73,154 @@ button:focus-visible {
   width: min(1040px, 100%);
   min-height: 100dvh;
   margin: auto;
-  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(22px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  padding: max(20px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(28px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
 }
 
-/* Header */
+/* ==========================================================================
+   Header & Brand
+   ========================================================================== */
 .app-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin: 2px 2px 20px;
+  margin: 4px 2px 24px;
   flex-wrap: wrap;
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  margin-bottom: 6px;
+  padding: 3px 9px 3px 7px;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 999px;
+  background: var(--amber-soft);
+  color: var(--amber);
+  font-family: "Space Mono", monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+}
+
+.brand-badge span {
+  font-size: 11px;
 }
 
 h1 {
   margin: 0;
-  font-size: clamp(22px, 5.5vw, 30px);
-  letter-spacing: -1.5px;
-  line-height: 1;
+  font-family: "Outfit", sans-serif;
+  font-size: clamp(26px, 5.5vw, 34px);
+  font-weight: 800;
+  letter-spacing: -0.8px;
+  line-height: 1.05;
+  color: var(--text-bright);
 }
 
 .app-header p {
-  margin: 5px 0 0;
+  margin: 6px 0 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
 }
 
 .header-status, .camera-status, .tracking-note {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   color: var(--muted);
-  font-family: "DM Mono", monospace;
+  font-family: "Space Mono", monospace;
   font-size: 10px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   white-space: nowrap;
 }
 
 .header-status {
-  padding: 9px 11px;
-  border: 1px solid var(--line);
+  padding: 8px 14px;
+  border: 1px solid var(--line-strong);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.025);
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .header-status span, .camera-status i, .tracking-note i {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #5b5b65;
+  background: #57534e;
+  transition: all 0.2s ease;
 }
 
 [data-tone="ready"] { color: var(--text); }
-[data-tone="ready"] span, [data-tone="ready"] i { background: var(--green); box-shadow: 0 0 10px rgba(115, 223, 184, 0.55); }
-[data-tone="active"] { color: var(--text); }
-[data-tone="active"] span, [data-tone="active"] i { background: var(--purple); box-shadow: 0 0 10px rgba(158, 128, 255, 0.7); }
-[data-tone="error"] { color: #f1abb4; }
-[data-tone="error"] span, [data-tone="error"] i { background: var(--red); }
+[data-tone="ready"] span, [data-tone="ready"] i {
+  background: var(--sage);
+  box-shadow: 0 0 10px rgba(129, 178, 154, 0.65);
+}
 
-/* Instrument View (Original HandChord) */
+[data-tone="active"] { color: var(--text-bright); }
+[data-tone="active"] span, [data-tone="active"] i {
+  background: var(--amber);
+  box-shadow: 0 0 12px var(--amber-glow);
+}
+
+[data-tone="error"] { color: var(--coral); }
+[data-tone="error"] span, [data-tone="error"] i {
+  background: var(--coral);
+}
+
+/* ==========================================================================
+   Main Grid Layout
+   ========================================================================== */
 .instrument {
   display: grid;
-  grid-template-columns: minmax(0, 1.06fr) minmax(310px, 0.94fr);
-  gap: 16px;
+  grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+  gap: 20px;
   align-items: stretch;
 }
 
 .vision-panel, .keyboard-panel {
   border: 1px solid var(--line);
-  border-radius: 22px;
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.025), transparent 30%), var(--panel);
+  border-radius: 20px;
+  background: var(--panel);
+  box-shadow:
+    0 12px 32px -8px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
   overflow: hidden;
 }
 
+/* ==========================================================================
+   Webcam Stage Section
+   ========================================================================== */
 .vision-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   height: 48px;
-  padding: 0 16px;
+  padding: 0 18px;
   border-bottom: 1px solid var(--line);
+  background: var(--panel-head);
 }
 
-.vision-head > span, .section-label {
-  color: var(--muted);
-  font-family: "DM Mono", monospace;
+.panel-tag {
+  color: var(--amber);
+  font-family: "Space Mono", monospace;
   font-size: 10px;
-  letter-spacing: 0.12em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
 }
 
 .camera-stage {
   position: relative;
   aspect-ratio: 4/3;
   overflow: hidden;
-  background: #050507;
+  background: #0d0c0b;
 }
 
 #camera, #hand-canvas, .camera-shade {
@@ -165,7 +243,9 @@ h1 {
 
 .camera-shade {
   pointer-events: none;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.38), transparent 34%), linear-gradient(to top, rgba(0,0,0,0.62), transparent 45%);
+  background:
+    linear-gradient(to bottom, rgba(13, 12, 11, 0.45), transparent 30%),
+    linear-gradient(to top, rgba(13, 12, 11, 0.70), transparent 45%);
 }
 
 .camera-empty, .camera-error {
@@ -175,7 +255,7 @@ h1 {
   display: grid;
   align-content: center;
   justify-items: center;
-  padding: 28px;
+  padding: 30px;
   text-align: center;
 }
 
@@ -188,57 +268,82 @@ h1 {
 .hand-mark {
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
-  margin-bottom: 13px;
-  border: 1px solid rgba(158, 128, 255, 0.45);
-  border-radius: 14px;
-  color: var(--purple);
-  font-size: 21px;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 14px;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 16px;
+  background: var(--amber-soft);
+  font-size: 24px;
 }
 
 .camera-empty h2, .camera-error strong {
   margin: 0;
-  font-size: 18px;
-  letter-spacing: -0.5px;
+  font-family: "Outfit", sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: var(--text-bright);
 }
 
 .camera-empty p, .camera-error p {
-  max-width: 270px;
+  max-width: 290px;
   margin: 8px 0 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.55;
 }
 
+.quick-hints {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 18px;
+  max-width: 320px;
+}
+
+.quick-hints span {
+  padding: 4px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #d6d3d1;
+  font-size: 10.5px;
+  font-weight: 500;
+}
+
 .camera-error {
-  background: rgba(9, 9, 13, 0.92);
+  background: rgba(20, 19, 18, 0.94);
 }
 
 .camera-error strong {
-  color: #f3b3bc;
+  color: var(--coral);
 }
 
 .camera-reading {
   position: absolute;
   z-index: 2;
-  top: 15px;
-  left: 15px;
-  text-shadow: 0 2px 10px #000;
+  top: 16px;
+  left: 18px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
 }
 
 .camera-reading span, .current-reading span {
   display: block;
-  color: rgba(255, 255, 255, 0.58);
-  font-family: "DM Mono", monospace;
-  font-size: 9px;
-  letter-spacing: 0.13em;
+  color: var(--amber);
+  font-family: "Space Mono", monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
 }
 
 .camera-reading strong {
   display: block;
-  margin-top: 5px;
-  font-size: 14px;
+  margin-top: 4px;
+  font-family: "Outfit", sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-bright);
 }
 
 .gesture-debug {
@@ -247,11 +352,11 @@ h1 {
   left: 12px;
   right: 12px;
   z-index: 3;
-  padding: 6px 10px;
-  background: rgba(9, 9, 13, 0.88);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  font-family: "DM Mono", monospace;
+  padding: 8px 12px;
+  background: rgba(20, 19, 18, 0.92);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  font-family: "Space Mono", monospace;
   font-size: 9px;
   color: var(--text);
   display: flex;
@@ -259,49 +364,65 @@ h1 {
   gap: 8px;
 }
 
-.gesture-debug span {
-  color: var(--muted);
-}
-
 .vision-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 15px 16px 16px;
+  padding: 16px 18px;
+  background: var(--panel-head);
+  border-top: 1px solid var(--line);
 }
 
 .current-reading strong {
   display: block;
-  margin: 4px 0 2px;
-  font-size: 25px;
-  letter-spacing: -1px;
+  margin: 3px 0 1px;
+  font-family: "Outfit", sans-serif;
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: -0.6px;
+  color: var(--text-bright);
 }
 
 .current-reading p {
   margin: 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
-.camera-button, .sound-button {
-  min-height: 42px;
-  padding: 0 14px;
-  border: 1px solid rgba(158, 128, 255, 0.42);
+.camera-button {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid var(--amber);
   border-radius: 12px;
-  background: var(--purple);
-  color: #111019;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
+  background: var(--amber);
+  color: #1a1409;
+  font-family: "Outfit", sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);
+}
+
+.camera-button:hover {
+  background: var(--amber-hover);
+  transform: translateY(-1px);
 }
 
 .camera-button.is-running {
-  border-color: var(--line);
-  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--line-strong);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--text);
+  box-shadow: none;
 }
 
+.camera-button.is-running:hover {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+/* ==========================================================================
+   Keyboard & Acoustic Piano Section
+   ========================================================================== */
 .keyboard-panel {
   display: flex;
   flex-direction: column;
@@ -311,57 +432,67 @@ h1 {
 .keyboard-head {
   display: flex;
   justify-content: space-between;
-  align-items: start;
-  gap: 10px;
+  align-items: flex-start;
+  gap: 12px;
   margin-bottom: 16px;
+  flex-wrap: wrap;
 }
 
 .keyboard-head p {
-  margin: 5px 0 0;
+  margin: 4px 0 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .volume-control {
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 5px 9px;
+  gap: 8px;
+  padding: 6px 12px;
   background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  font-family: "DM Mono", monospace;
-  font-size: 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  font-family: "Space Mono", monospace;
+  font-size: 10px;
 }
 
-.volume-control span {
-  color: var(--muted);
+.vol-icon {
+  font-size: 12px;
 }
 
 .volume-control input[type="range"] {
-  width: 65px;
+  width: 72px;
   height: 4px;
-  accent-color: var(--purple);
+  accent-color: var(--amber);
   cursor: pointer;
 }
 
 .volume-control b {
-  min-width: 32px;
-  color: var(--purple);
+  min-width: 34px;
+  color: var(--amber);
   text-align: right;
 }
 
 .sound-button {
-  min-height: 35px;
-  padding: 0 10px;
-  border-color: var(--line);
-  background: rgba(255, 255, 255, 0.045);
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
   color: var(--text);
-  font-size: 9px;
+  font-family: "Space Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.sound-button:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .sound-button.is-off {
-  color: var(--muted);
+  color: var(--faint);
+  border-color: rgba(255, 255, 255, 0.05);
 }
 
 .song-mode {
@@ -369,528 +500,281 @@ h1 {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin: -3px 0 13px;
-  padding: 9px 10px;
-  border: 1px solid rgba(158, 128, 255, 0.22);
-  border-radius: 11px;
-  background: rgba(158, 128, 255, 0.045);
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 12px;
+  background: rgba(245, 158, 11, 0.04);
 }
 
-.song-mode span, .song-mode small {
+.song-mode span {
   display: block;
-  color: var(--muted);
-  font-family: "DM Mono", monospace;
-  font-size: 8px;
-  letter-spacing: 0.1em;
+  color: var(--amber);
+  font-family: "Space Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.08em;
 }
 
 .song-mode strong {
   display: inline-block;
-  margin: 2px 5px 0 0;
-  font-size: 13px;
-  letter-spacing: 0.06em;
+  margin: 2px 6px 0 0;
+  font-family: "Outfit", sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-bright);
 }
 
 .song-mode small {
-  display: inline-block;
-  letter-spacing: 0;
-  font-family: Inter, sans-serif;
-  font-size: 9px;
+  color: var(--muted);
+  font-size: 11px;
 }
 
 .song-mode button {
-  min-height: 31px;
-  padding: 0 9px;
-  border: 1px solid var(--line);
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
   border-radius: 9px;
-  background: rgba(255, 255, 255, 0.045);
-  font-size: 8px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
+  background: rgba(255, 255, 255, 0.04);
+  font-family: "Space Mono", monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--text);
+}
+
+.song-mode button:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .song-mode button.active {
-  border-color: rgba(158, 128, 255, 0.55);
-  background: var(--purple);
-  color: #17131f;
+  border-color: var(--amber);
+  background: var(--amber);
+  color: #1a1409;
+  box-shadow: 0 2px 10px rgba(245, 158, 11, 0.35);
 }
 
+/* ==========================================================================
+   Acoustic Piano Keys (Natural Ivory Look & Feel)
+   ========================================================================== */
 .piano {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 3px;
+  gap: 4px;
   flex: 1;
-  min-height: 265px;
-  padding: 5px 5px 9px;
-  border-radius: 8px 8px 15px 15px;
-  background: #060608;
-  box-shadow: inset 0 1px #32323a, 0 12px 20px rgba(0, 0, 0, 0.18);
+  min-height: 275px;
+  padding: 8px 8px 12px;
+  border-radius: 12px 12px 18px 18px;
+  background: #11100e;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow:
+    inset 0 2px 6px rgba(0, 0, 0, 0.6),
+    0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
 .piano-key {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
   min-width: 0;
-  padding: 18px 4px 16px;
-  border: 1px solid #c8c8cf;
-  border-radius: 4px 4px 12px 12px;
-  background: linear-gradient(90deg, #dfdfe4 0%, #fff 13%, #fbfbfd 84%, #d7d7dd 100%);
-  box-shadow: inset 0 -8px 0 #d7d7dd, 0 3px 0 #55555d;
-  color: #17171d;
-  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease, background 0.12s ease;
+  padding: 16px 4px 18px;
+  border: 1px solid #d5cfc2;
+  border-radius: 5px 5px 12px 12px;
+  background: linear-gradient(180deg, var(--ivory-top) 0%, #f6f2e9 75%, var(--ivory-base) 100%);
+  box-shadow:
+    inset 0 -8px 0 var(--ivory-shadow),
+    0 4px 8px rgba(0, 0, 0, 0.25);
+  color: #24221e;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.12s ease;
   user-select: none;
 }
 
+.key-emoji {
+  position: absolute;
+  top: 14px;
+  font-size: 17px;
+  opacity: 0.85;
+}
+
 .piano-key strong {
-  font-size: clamp(20px, 3.5vw, 30px);
-  letter-spacing: -1px;
+  font-family: "Outfit", sans-serif;
+  font-size: clamp(22px, 3.8vw, 32px);
+  font-weight: 800;
+  letter-spacing: -0.6px;
+  line-height: 1;
 }
 
 .piano-key span {
   margin-top: 4px;
+  font-family: "Space Mono", monospace;
   font-size: 9px;
   font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: #57534e;
 }
 
 .piano-key small {
-  margin-top: 13px;
-  color: #777780;
-  font-family: "DM Mono", monospace;
-  font-size: 6.5px;
-  letter-spacing: 0.04em;
-  text-align: center;
+  margin-top: 6px;
+  color: #78716c;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.piano-key:hover {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0 -6px 0 var(--ivory-shadow),
+    0 3px 6px rgba(0, 0, 0, 0.2);
 }
 
 .piano-key:active, .piano-key.active {
-  transform: translateY(3px);
-  background: linear-gradient(90deg, #c9c3e6, #edeaff 15%, #e4ddff 85%, #b9b2d5);
-  border-color: #a68bff;
-  box-shadow: inset 0 -4px 0 #b5aad7, 0 0 0 1px rgba(158, 128, 255, 0.3), 0 0 18px rgba(124, 105, 255, 0.38);
-  filter: saturate(1.12);
+  transform: translateY(4px);
+  background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 75%, #fde68a 100%);
+  border-color: #f59e0b;
+  box-shadow:
+    inset 0 -3px 0 #d97706,
+    0 0 16px var(--amber-glow);
+  color: #78350f;
 }
 
+.piano-key.active strong {
+  color: #b45309;
+}
+
+.piano-key.active span {
+  color: #92400e;
+}
+
+/* ==========================================================================
+   Song Progression Bar & Footer Controls
+   ========================================================================== */
 .progression {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   gap: 6px;
-  margin: 13px 0 1px;
-  color: var(--muted);
-  font-family: "DM Mono", monospace;
-  font-size: 10px;
+  margin-top: 16px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  overflow-x: auto;
 }
 
 .progression span {
-  display: grid;
-  place-items: center;
-  min-width: 38px;
-  height: 23px;
-  padding: 0 5px;
-  border-radius: 7px;
-  transition: color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-family: "Space Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.progression span i {
+  font-style: normal;
+  font-size: 11px;
 }
 
 .progression span.active {
-  background: rgba(158, 128, 255, 0.18);
-  color: var(--text);
-  box-shadow: 0 0 12px rgba(158, 128, 255, 0.28);
+  background: var(--amber-soft);
+  color: var(--amber);
+  box-shadow: 0 0 10px var(--amber-glow);
 }
 
-.progression i {
+.progression > i {
+  color: var(--faint);
   font-style: normal;
-  color: #5b5b65;
+  font-size: 11px;
 }
 
 .mute-button {
   display: flex;
   align-items: center;
-  gap: 9px;
+  justify-content: center;
+  gap: 8px;
   width: 100%;
-  margin-top: 15px;
+  margin-top: 12px;
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: rgba(0, 0, 0, 0.18);
-  text-align: left;
-}
-
-.mute-button:active, .mute-button.active {
-  border-color: rgba(158, 128, 255, 0.5);
-  background: rgba(158, 128, 255, 0.1);
-}
-
-.mute-button span {
-  display: grid;
-  place-items: center;
-  width: 19px;
-  height: 19px;
-  border-radius: 50%;
-  background: #2b2b33;
+  background: rgba(255, 255, 255, 0.03);
   color: var(--muted);
+  font-size: 12px;
+}
+
+.mute-button:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+}
+
+.mute-button.active {
+  border-color: var(--terracotta);
+  background: var(--terracotta-soft);
+  color: var(--terracotta);
 }
 
 .mute-button b {
-  font-size: 10px;
-  letter-spacing: 0.05em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .mute-button small {
-  margin-left: auto;
-  color: var(--muted);
-  font-size: 10px;
+  color: var(--faint);
+  font-size: 11px;
 }
 
 .tracking-note {
-  margin: 14px 2px 0;
-  line-height: 1.3;
+  margin: 14px 0 0;
+  justify-content: center;
 }
 
-
-/* =========================================================
-   MOBILE RESPONSIVE OVERRIDES — HandChord
-   Keeps the desktop layout intact and makes the instrument
-   stack cleanly on phones.
-   ========================================================= */
-
-@media (max-width: 760px) {
-  html,
-  body {
-    width: 100%;
-    max-width: 100%;
-    overflow-x: hidden;
-  }
-
-  #app {
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    padding-top: max(12px, env(safe-area-inset-top));
-    padding-right: max(12px, env(safe-area-inset-right));
-    padding-bottom: max(18px, env(safe-area-inset-bottom));
-    padding-left: max(12px, env(safe-area-inset-left));
-  }
-
-  .app-header {
-    width: 100%;
-    min-width: 0;
-    margin: 2px 0 16px;
-    gap: 10px;
-    align-items: flex-start;
-  }
-
-  .app-header > div:first-child {
-    min-width: 0;
-  }
-
-  h1 {
-    font-size: 24px;
-  }
-
-  .app-header p {
-    max-width: 220px;
-    font-size: 11px;
-    line-height: 1.35;
-  }
-
-  .header-status {
-    flex: 0 0 auto;
-    max-width: 145px;
-    padding: 8px 9px;
-    font-size: 9px;
-  }
-
-  /* The two-column desktop instrument becomes one clean
-     vertical flow on phones. */
+/* ==========================================================================
+   Responsive Adaptations
+   ========================================================================== */
+@media (max-width: 860px) {
   .instrument {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    min-width: 0;
-    gap: 12px;
-  }
-
-  .vision-panel,
-  .keyboard-panel {
-    width: 100%;
-    min-width: 0;
-    max-width: 100%;
-    border-radius: 18px;
-  }
-
-  .vision-head {
-    height: 44px;
-    padding: 0 13px;
-  }
-
-  .camera-stage {
-    width: 100%;
-    max-width: 100%;
-    aspect-ratio: 4 / 3;
-  }
-
-  .camera-empty,
-  .camera-error {
-    padding: 18px;
-  }
-
-  .camera-empty h2,
-  .camera-error strong {
-    font-size: 16px;
-  }
-
-  .camera-empty p,
-  .camera-error p {
-    max-width: 230px;
-    font-size: 11px;
-  }
-
-  .camera-reading {
-    top: 11px;
-    left: 11px;
-  }
-
-  .vision-footer {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-    padding: 12px 13px 13px;
-  }
-
-  .current-reading strong {
-    font-size: 22px;
-  }
-
-  .camera-button {
-    width: 100%;
-    min-height: 42px;
-  }
-
-  /* Piano */
-  .keyboard-panel {
-    padding: 13px;
-  }
-
-  .keyboard-head {
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 11px;
-  }
-
-  .keyboard-head p {
-    font-size: 10px;
-  }
-
-  .sound-button {
-    flex: 0 0 auto;
-    min-height: 34px;
-    padding: 0 9px;
-  }
-
-  .song-mode {
-    width: 100%;
-    min-width: 0;
-    margin: -1px 0 10px;
-    padding: 8px;
-    gap: 8px;
-  }
-
-  .song-mode > div {
-    min-width: 0;
-  }
-
-  .song-mode strong {
-    font-size: 12px;
-  }
-
-  .song-mode small {
-    font-size: 8px;
-  }
-
-  .song-mode button {
-    flex: 0 0 auto;
-    min-height: 32px;
+    grid-template-columns: 1fr;
   }
 
   .piano {
-    width: 100%;
-    min-width: 0;
-    min-height: 0;
-    height: clamp(190px, 55vw, 245px);
-    flex: none;
-    gap: 3px;
-    padding: 4px 4px 7px;
-  }
-
-  .piano-key {
-    min-width: 0;
-    min-height: 0;
-    padding: 10px 2px 11px;
-    border-radius: 3px 3px 9px 9px;
-  }
-
-  .piano-key strong {
-    font-size: clamp(17px, 5.2vw, 24px);
-    letter-spacing: -0.8px;
-  }
-
-  .piano-key span {
-    width: 100%;
-    margin-top: 3px;
-    padding: 0 1px;
-    font-size: clamp(7px, 2.2vw, 9px);
-    text-align: center;
-  }
-
-  .piano-key small {
-    width: 100%;
-    margin-top: 8px;
-    font-size: clamp(5.5px, 1.7vw, 6.5px);
-    line-height: 1.15;
-    white-space: normal;
-  }
-
-  /* Keep the progression inside the card instead of pushing
-     the whole page wider. */
-  .progression {
-    justify-content: flex-start;
-    width: 100%;
-    min-width: 0;
-    margin: 10px 0 0;
-    padding: 2px 1px 4px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .progression::-webkit-scrollbar {
-    display: none;
-  }
-
-  .progression span {
-    flex: 0 0 auto;
-    min-width: 36px;
-    height: 22px;
-    font-size: 9px;
-  }
-
-  .progression i {
-    flex: 0 0 auto;
-  }
-
-  .mute-button {
-    margin-top: 11px;
-    padding: 11px;
-  }
-
-  .tracking-note {
-    margin: 10px 1px 0;
-    font-size: 9px;
+    min-height: 220px;
   }
 }
 
-/* Small phones */
-@media (max-width: 390px) {
+@media (max-width: 480px) {
   #app {
-    padding-left: max(10px, env(safe-area-inset-left));
-    padding-right: max(10px, env(safe-area-inset-right));
+    padding-left: 12px;
+    padding-right: 12px;
   }
 
   .app-header {
-    gap: 7px;
-  }
-
-  h1 {
-    font-size: 22px;
-  }
-
-  .header-status {
-    padding: 7px 8px;
-    font-size: 8px;
-  }
-
-  .vision-panel,
-  .keyboard-panel {
-    border-radius: 16px;
+    margin-bottom: 16px;
   }
 
   .keyboard-panel {
-    padding: 11px;
+    padding: 14px;
   }
 
   .piano {
-    height: 205px;
+    min-height: 195px;
+    gap: 3px;
   }
 
-  .piano-key {
-    padding: 8px 1px 9px;
+  .key-emoji {
+    font-size: 13px;
+    top: 8px;
   }
 
   .piano-key strong {
     font-size: 18px;
   }
 
-  .piano-key span {
-    font-size: 7px;
-  }
-
-  .piano-key small {
-    margin-top: 6px;
-    font-size: 5.5px;
-  }
-
-  .song-mode {
-    padding: 7px;
-  }
-
-  .song-mode strong {
-    font-size: 11px;
-  }
-}
-
-/* Very small phones */
-@media (max-width: 340px) {
-  #app {
-    padding-left: 8px;
-    padding-right: 8px;
-  }
-
-  .header-status {
-    max-width: 120px;
-  }
-
-  .keyboard-panel {
-    padding: 9px;
-  }
-
-  .piano {
-    height: 190px;
-    gap: 2px;
-  }
-
-  .piano-key strong {
-    font-size: 16px;
-  }
-
-  .piano-key span {
-    font-size: 6.5px;
-  }
-
   .piano-key small {
     display: none;
-  }
-
-  .song-mode {
-    gap: 5px;
-  }
-
-  .song-mode button {
-    padding: 0 7px;
-    font-size: 7px;
   }
 }

@@ -756,7 +756,7 @@ const EDGES = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,
 function drawHand(points, classification) {
   resetCanvas();
   context.lineWidth = 2.5;
-  context.strokeStyle = "rgba(165, 138, 255, 0.75)";
+  context.strokeStyle = "rgba(245, 158, 11, 0.75)";
 
   EDGES.forEach(([a, b]) => {
     context.beginPath();
@@ -767,16 +767,16 @@ function drawHand(points, classification) {
 
   points.forEach((point, i) => {
     const isTip = i === 4 || i === 8 || i === 12 || i === 16 || i === 20;
-    let color = "#8cc2ff";
+    let color = "#e5dfd3";
     let radius = 3.5;
 
     if (classification?.fingerInfo) {
       const { idx, mid, rng, pnk, thb } = classification.fingerInfo;
-      if (i === 8) color = idx.extended ? "#00ffcc" : "#ff4d6d";
-      if (i === 12) color = mid.extended ? "#00ffcc" : "#ff4d6d";
-      if (i === 16) color = rng.extended ? "#00ffcc" : "#ff4d6d";
-      if (i === 20) color = pnk.extended ? "#00ffcc" : "#ff4d6d";
-      if (i === 4) color = thb.extended ? "#00ffcc" : "#ff4d6d";
+      if (i === 8) color = idx.extended ? "#fbbf24" : "#e07a5f";
+      if (i === 12) color = mid.extended ? "#fbbf24" : "#e07a5f";
+      if (i === 16) color = rng.extended ? "#fbbf24" : "#e07a5f";
+      if (i === 20) color = pnk.extended ? "#fbbf24" : "#e07a5f";
+      if (i === 4) color = thb.extended ? "#fbbf24" : "#e07a5f";
       if (isTip) radius = 6.0;
     }
 
@@ -787,7 +787,7 @@ function drawHand(points, classification) {
 
     if (isTip) {
       context.lineWidth = 1.5;
-      context.strokeStyle = "#ffffff";
+      context.strokeStyle = "#fffdfa";
       context.stroke();
     }
   });
@@ -800,16 +800,16 @@ function drawHand(points, classification) {
     const count = classification.extendedCount ?? "";
 
     context.save();
-    context.fillStyle = "rgba(15, 17, 26, 0.85)";
-    context.strokeStyle = "rgba(165, 138, 255, 0.4)";
+    context.fillStyle = "rgba(20, 19, 18, 0.90)";
+    context.strokeStyle = "rgba(245, 158, 11, 0.35)";
     context.lineWidth = 1;
     context.beginPath();
     context.roundRect(14, el.canvas.height - 44, 250, 32, 8);
     context.fill();
     context.stroke();
 
-    context.fillStyle = "#00ffcc";
-    context.font = "bold 13px 'DM Mono', monospace, sans-serif";
+    context.fillStyle = "#fbbf24";
+    context.font = "bold 13px 'Space Mono', monospace, sans-serif";
     context.fillText(`${gestureName} [${count}] → ${name}`, 24, el.canvas.height - 23);
     context.restore();
   }
