@@ -1,93 +1,115 @@
 # 🎸 HandChord
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Demo-handchord.vercel.app-7928CA?style=for-the-badge&logo=vercel&logoColor=white" alt="Live Demo" />
+  <a href="https://handchord.vercel.app/"><img src="https://img.shields.io/badge/Live_App-handchord.vercel.app-f59e0b?style=for-the-badge&logo=vercel&logoColor=black" alt="Live Demo" /></a>
   <img src="https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite" />
   <img src="https://img.shields.io/badge/MediaPipe-0078D4?style=for-the-badge&logo=google&logoColor=white" alt="MediaPipe" />
-  <img src="https://img.shields.io/badge/Web_Audio_API-FFA500?style=for-the-badge" alt="Web Audio" />
-  <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="MIT License" />
+  <img src="https://img.shields.io/badge/Web_Audio-FFA500?style=for-the-badge" alt="Web Audio" />
+  <img src="https://img.shields.io/badge/License-MIT-10b981?style=for-the-badge" alt="MIT License" />
 </p>
 
 <p align="center">
-  <b>Play chords with your hands in thin air.</b><br />
-  No MIDI keyboards. No physical sensors. Zero latency. Just your webcam and browser.
+  <b>Play acoustic chords freely in thin air with just your webcam.</b><br />
+  No guitar, no MIDI keyboard, no sensors. Just your hands and a browser.
 </p>
 
 <p align="center">
-  👉 <a href="https://handchord.vercel.app/"><b>Experience the Live Demo &rarr;</b></a>
+  👉 <a href="https://handchord.vercel.app/"><b>Try HandChord in your browser &rarr;</b></a>
 </p>
 
 ---
 
-## ⚡ What is HandChord?
+## ✨ Why HandChord?
 
-**HandChord** turns your standard webcam into an expressive musical air-instrument. 
+We've all caught ourselves air-guitaring along to our favorite songs. **HandChord** turns that spontaneous feeling into real acoustic music.
 
-By analyzing hand geometry at 60 FPS directly in the browser using WebAssembly, HandChord classifies your finger poses into rich, polyphonic chord voicings. The sound engine then generates warm acoustic resonance in real time using the native Web Audio API — completely client-side with zero audio samples to download.
+Turn on your webcam, hold up a gesture, and the app strums rich, resonant chords in real time. Everything runs client-side inside your browser—powered by WebAssembly hand tracking and the Web Audio API—with zero latency, zero downloads, and zero plugins.
 
----
-
-## 🖐️ Gesture Reference
-
-Hold up your hand in front of your camera to trigger smooth acoustic voicings:
-
-| Gesture | Chord | Voicing | Acoustic Feel |
-|:---:|:---:|:---:|:---|
-| ✌️ **Peace Sign** | `Dadd9` | D2 · D3 · F#3 · A3 · D4 · E4 | Bright, uplifting folk strum |
-| ✋ **Open Hand** | `Gmaj7` | G2 · D3 · G3 · B3 · D4 · F#4 | Warm, dreamy, open acoustic resonance |
-| ✊ **Fist** | `Em7` | E2 · E3 · G3 · B3 · D4 · E4 | Deep, grounded minor tension |
-| ☝️ **Point** | `Cadd9` | C2 · G2 · G3 · C4 · D4 · E4 | Crisp modern pop resolution |
-| 🤟 **3 Fingers** | `Bm7/A` | B1 · A2 · A3 · B3 · D4 · F#4 | Emotional melancholic suspension |
-| 🤙 **Thumb + Index** | `Aadd9` | A1 · A2 · A3 · B3 · C#4 · E4 | Singing, bright vocal transition |
-| 🛑 **Hand Lowered** | `MUTE` | — | Natural sustained ring & acoustic release |
-
-> **Pro-Tip**: You can also click the on-screen digital piano keys or hit **Auto Play** to hear the arrangement for Goo Goo Dolls' *Iris*.
+Whether you're singing along, practicing chord changes, or just having fun experimenting, it feels like strumming an invisible acoustic instrument.
 
 ---
 
-## 🧠 Under the Hood
+## 🎶 Songs & Dynamic Repertoire
 
-### 1. Robust 3D Bone-Straightness Tracking
-Many camera-gesture projects fail because 2D screen height (`y`-coordinate) misinterprets tilted or angled fingers. HandChord solves this with a multi-joint biometric pipeline:
-- **Joint Straightness Ratio**: Compares direct distance from knuckle base (MCP) to fingertip against the sum of all joint segments. Extended fingers score `> 0.82`, while curled fingers collapse to `< 0.45`.
-- **3D Knuckle Bend Angles**: Computes 3D angle at the PIP joint (`angle3D > 118°`). Curled fingers bend sharply (`60°–95°`), permanently eliminating false positives (e.g. peace sign will never misclassify as 3 fingers).
-- **Sub-40ms Confirmation**: Fast temporal window confirms chord transitions without lag or debounce stutter.
+HandChord isn't locked to one chord loop. Each song is configured with authentic chord charts from real recordings. When you pick a song from the dropdown, the **6 piano keys**, **gesture mapping**, and **progression timeline** update automatically to match that song:
 
-### 2. Warm Web Audio Synthesis (No Buzz)
-- **Harmonic Oscillation**: Combines warm triangle waves (natural wooden piano resonance) with pure sine sub-oscillators for fundamental warmth.
-- **Butterworth Acoustic Filtering**: Lowpass filter with critically damped resonance (`Q = 0.7`) rolls off naturally above 3.2 kHz, eliminating digital harshness and buzz.
-- **Psychoacoustic Bass Doubling**: Fundamental bass notes (< 120 Hz) are octave-doubled into the 140–280 Hz register so laptop and smartphone speakers produce full acoustic punch.
-- **Transparent Soft Limiter**: Keeps sound loud and punchy while preventing digital clipping or audio artifacts.
+| Song | Artist | Key & Authentic Chords |
+| :--- | :--- | :--- |
+| **Sadhana** | John Chamling Rai | `C · G · F · Em · Dm · Am` |
+| **Ko Cha Ra** | John Chamling Rai | `C · Em · F · G · Am · Dm` |
+| **Maya Le** | John Chamling Rai | `C · F · Am · G · Em · Dm` |
+| **Hawa Jastai** | John Chamling Rai | `G · Bm · C · D · Em · Am` |
+| **Farkanna Hola** | John Chamling Rai | `C · Am · Em · F · G · Dm` |
+| **Perfect** | Ed Sheeran | `G · Em · C · D · Am · Bm` |
+| **Night Changes** | One Direction | `G · Em · Bm · D · C · Am` |
+| **Iris** | Goo Goo Dolls | `D · Em · G · Bm · A · C` |
 
-### 3. Real-Time HUD
-- Visual feedback skeleton draws extended fingertips in **Neon Cyan** and curled fingers in **Coral Red**.
-- Live on-canvas badge reveals detected finger count and active chord name in real-time.
+> Want to just listen or follow along? Toggle **Auto Play** to hear the song accompanied with synchronized chord changes and lyric cues.
 
 ---
 
-## 🚀 Quickstart
+## 🖐️ How to Play with Gestures
 
-### Prerequisites
-- Node.js (v18+)
-- A laptop/desktop webcam or mobile browser with camera permissions
+Position your hand comfortably in front of your camera. HandChord reads the 3D geometry of your fingers to trigger each chord smoothly:
 
-### Run Locally
+| Gesture | Chord Slot | Typical Feel |
+| :---: | :---: | :---|
+| ✋ **Open Palm** (4 fingers extended) | Slot 1 | Root tonic resolution (e.g. `Cadd9` or `Gmaj`) |
+| ✌️ **Peace Sign** (Index + Middle) | Slot 2 | Bright complementary chord (e.g. `Gmaj` or `Em7`) |
+| ✊ **Fist** (Fingers curled inward) | Slot 3 | Grounded bass or minor shift (e.g. `Fmaj7` or `Bm7`) |
+| ☝️ **Point** (Single Index finger) | Slot 4 | Melodic passing chord (e.g. `Em7` or `Dadd9`) |
+| 🤟 **Three Fingers** (Index, Middle, Ring) | Slot 5 | Soulful, suspended lift (e.g. `Dm7` or `Am7`) |
+| 🤙 **Thumb + Index** | Slot 6 | Transition voicing (e.g. `Am7` or `Bm7`) |
+| 🛑 **Lower Hand** | Silence | Natural acoustic release and ring |
+
+*Tip: You can also click the on-screen digital piano keys directly or use the master volume slider.*
+
+---
+
+## 🔊 The Sound Engine: Warm, Loud & Buzz-Free
+
+Getting realistic acoustic tone out of browser synthesis without harsh digital buzzing or clipping pops took careful engineering:
+
+1. **Natural Harmonics**: Uses triangle wave fundamentals combined with subtle octave sine shimmers, producing the organic 1/n² harmonic roll-off typical of acoustic guitar strings and pianos.
+2. **Acoustic Lowpass Dynamics**: A gentle 2nd-order Butterworth filter (`Q = 0.75`) opens up to 3400 Hz on the initial strum to capture string presence and brightness, then softly settles to 1800 Hz as the note rings out.
+3. **Studio Tape Saturation (`tanh` Curve)**: A smooth transfer curve provides warm analog headroom. It keeps the audio loud and full-bodied on laptop and phone speakers while making digital clipping or buzz physically impossible.
+4. **Pop-Free Crossfading**: Changing gestures smoothly fades out ringing notes using exponential release curves (`cancelAndHoldAtTime`), giving transitions a natural, seamless feel.
+
+---
+
+## 🎨 Dark Music Studio Design
+
+The UI is inspired by hardware synthesizers and analog recording studios:
+- **Matte Obsidian Keys**: Dark synth keys with tactile bevels and warm gold lettering.
+- **Amber Studio Glow**: Live active chords illuminate with studio backlight glow.
+- **Un-Mirrored HUD Badge**: Real-time feedback in the camera view displays your detected gesture, finger count, and current chord without reverse-mirroring the text.
+- **Tactile Volume Mixer**: Quick slider to adjust master output volume to your room setup.
+
+---
+
+## 💻 Running Locally
+
+### Requirements
+- [Node.js](https://nodejs.org/) (v18 or newer)
+- A laptop/desktop webcam or mobile browser with camera support
+
+### Setup
 
 ```bash
-# Clone the repository
+# 1. Clone the repo
 git clone https://github.com/aayushbhatta230-ux/handchord.git
 
-# Enter project directory
+# 2. Go to the project folder
 cd handchord
 
-# Install dependencies
+# 3. Install dependencies
 npm install
 
-# Start lightning-fast Vite dev server
+# 4. Start the local dev server
 npm run dev
 ```
 
-Open `http://localhost:5173` in Chrome, Edge, or Safari, click **START CAMERA**, and make your first chord!
+Visit `http://localhost:5173` in Chrome, Edge, or Safari, allow camera access, and start making music!
 
 ### Production Build
 
@@ -98,27 +120,23 @@ npm run preview
 
 ---
 
-## 🛠️ Built With
+## 🛠️ Tech Stack
 
-- **[Vite](https://vitejs.dev/)** — Sub-second HMR and optimized bundler
-- **[MediaPipe Tasks Vision](https://developers.google.com/mediapipe/solutions/vision/hand_landmarker)** — On-device machine learning hand landmark detection via WebAssembly
-- **[Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)** — Hardware-accelerated browser polyphonic audio synthesis
-- **Vanilla JavaScript & CSS** — Pure performance with zero bloated framework dependencies
-
----
-
-## 🤝 Contributing
-
-Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/aayushbhatta230-ux/handchord/issues).
+- **[Vite](https://vitejs.dev/)** — Lightweight, instant development server & bundler.
+- **[MediaPipe Hand Landmarker](https://developers.google.com/mediapipe/solutions/vision/hand_landmarker)** — 21 3D hand landmarks tracked on-device via WebAssembly at 30–60 FPS.
+- **[Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)** — Polyphonic real-time synthesis and DSP audio processing.
+- **Vanilla JavaScript & CSS** — Pure, lean code with zero heavyweight framework bloat.
 
 ---
 
-## ⭐ Show Your Support
+## 🤝 Feedback & Contributions
 
-If you enjoyed making music with your hands, give this repo a **Star ⭐** — it helps more musicians and developers discover creative audio coding!
+Suggestions, song requests, and pull requests are warmly welcomed! If you'd like to suggest chords or new songs, open an issue or submit a PR on [GitHub](https://github.com/aayushbhatta230-ux/handchord).
+
+If you had fun playing music with HandChord, consider leaving a **Star ⭐** on GitHub!
 
 ---
 
 ## 📄 License
 
-This project is licensed under the [MIT License](LICENSE).
+Distributed under the [MIT License](LICENSE).
