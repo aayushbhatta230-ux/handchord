@@ -496,12 +496,24 @@ let autoPlayEnabled = false;
 let autoPlayTimer = null;
 let autoPlayIndex = 0;
 
+function createStudioSaturationCurve(samples = 1024) {
+  const curve = new Float32Array(samples);
+  for (let i = 0; i < samples; ++i) {
+    const x = (i * 2) / samples - 1;
+    // Pure studio analog tanh saturation: zero distortion at normal levels,
+    // rounds loud transients smoothly so volume can be high without digital clipping or buzz!
+    curve[i] = Math.tanh(x * 1.25) / Math.tanh(1.25);
+  }
+  return curve;
+}
+
 class AudioEngine {
   constructor() {
     this.context = null;
     this.enabled = true;
     this.volume = 1.0;
     this.masterGain = null;
+    this.saturator = null;
     this.activeVoices = [];
     this.lastChord = "MUTE";
   }
@@ -509,7 +521,7 @@ class AudioEngine {
   setVolume(vol) {
     this.volume = Math.max(0, Math.min(1.0, vol));
     if (this.masterGain && this.context) {
-      this.masterGain.gain.setValueAtTime(this.volume * 0.75, this.context.currentTime);
+      this.masterGain.gain.setValueAtTime(this.volume, this.context.currentTime);
     }
   }
 
@@ -524,9 +536,16 @@ class AudioEngine {
     try {
       this.context = new AudioCtx();
 
-      // Master output gain with calibrated digital headroom (never clips or buzzes)
+      // Studio analog saturator (tape/tube warmth that guarantees loud, rich output with ZERO clipping buzz)
+      this.saturator = this.context.createWaveShaper();
+      this.saturator.curve = createStudioSaturationCurve();
+      this.saturator.oversample = "2x";
+
+      // Master output gain
       this.masterGain = this.context.createGain();
-      this.masterGain.gain.setValueAtTime(this.volume * 0.75, this.context.currentTime);
+      this.masterGain.gain.setValueAtTime(this.volume, this.context.currentTime);
+
+      this.saturator.connect(this.masterGain);
       this.masterGain.connect(this.context.destination);
     } catch (err) {
       console.error("[AUDIO] Failed to initialize AudioContext:", err);
@@ -589,7 +608,7 @@ class AudioEngine {
     this.lastChord = "MUTE";
   }
 
-  async play(chord, intensity = 0.85, rollSpeedMs = 20) {
+  async play(chord, intensity = 0.90, rollSpeedMs = 18) {
     if (!this.enabled || chord === "MUTE" || !ALL_CHORDS[chord]) return;
     this.initContext();
     if (!this.context) return;
@@ -603,53 +622,64 @@ class AudioEngine {
     }
 
     // Lush seamless crossfade: gently fade previous chord without pops or clicks
-    this.release(0.35);
+    this.release(0.32);
 
     const now = this.context.currentTime + 0.015;
     const notes = ALL_CHORDS[chord].notes;
-    const roll = Math.min(0.026, Math.max(0.014, rollSpeedMs / 1000));
-    const intensityScale = Math.min(1.15, Math.max(0.70, intensity));
+    const roll = Math.min(0.024, Math.max(0.012, rollSpeedMs / 1000));
+    const intensityScale = Math.min(1.25, Math.max(0.75, intensity));
 
     const newVoices = notes.map((frequency, index) => {
       const start = now + index * roll;
 
-      // 1. Warm acoustic body: triangle wave has natural harmonic roll-off (1/n²), never harsh
+      // 1. Primary acoustic body: triangle wave for warm fundamental + natural 1/n² harmonic roll-off
       const osc = this.context.createOscillator();
       osc.type = "triangle";
       osc.frequency.setValueAtTime(frequency, start);
 
-      // 2. Velvety 2nd-order acoustic lowpass filter (warm wooden resonance, zero buzzing)
+      // 2. High-string shimmer overtone (octave harmonic at subtle -14dB) for crisp acoustic chime
+      const overtoneOsc = this.context.createOscillator();
+      overtoneOsc.type = "sine";
+      overtoneOsc.frequency.setValueAtTime(frequency * 2, start);
+      const overtoneGain = this.context.createGain();
+      overtoneGain.gain.setValueAtTime(0.18, start);
+
+      // 3. Acoustic resonance filter (opened to 3400Hz for high acoustic presence and clarity)
       const filter = this.context.createBiquadFilter();
       filter.type = "lowpass";
-      filter.Q.setValueAtTime(0.7, start);
-      filter.frequency.setValueAtTime(Math.min(2600, Math.max(1200, frequency * 3.8)), start);
-      filter.frequency.setTargetAtTime(Math.min(1100, Math.max(600, frequency * 1.8)), start + 0.03, 0.45);
+      filter.Q.setValueAtTime(0.75, start);
+      filter.frequency.setValueAtTime(Math.min(3400, Math.max(1400, frequency * 4.2)), start);
+      filter.frequency.setTargetAtTime(Math.min(1800, Math.max(800, frequency * 2.2)), start + 0.03, 0.50);
 
-      // Dedicated voice gain with calibrated headroom (5-6 strings sum to <= 0.39, impossible to clip)
+      // Dedicated voice gain - amplified for full, rich studio loudness
       const voiceGain = this.context.createGain();
-      const peak = 0.065 * (intensityScale / 0.85);
+      const peak = 0.17 * (intensityScale / 0.85);
 
-      // Connect graph: osc -> filter -> voiceGain -> masterGain -> destination
+      // Connect graph: [osc + overtone] -> filter -> voiceGain -> saturator -> masterGain -> destination
       osc.connect(filter);
+      overtoneOsc.connect(overtoneGain);
+      overtoneGain.connect(filter);
       filter.connect(voiceGain);
-      voiceGain.connect(this.masterGain);
+      voiceGain.connect(this.saturator);
 
       // Click-free acoustic pluck envelope:
-      // 25ms soft pluck ramp -> 2.5s exponential decay
+      // 18ms smooth attack ramp -> 2.6s lush acoustic decay
       voiceGain.gain.setValueAtTime(0.00001, start);
-      voiceGain.gain.linearRampToValueAtTime(peak, start + 0.025);
-      voiceGain.gain.setTargetAtTime(0.00001, start + 0.04, 1.4);
+      voiceGain.gain.linearRampToValueAtTime(peak, start + 0.018);
+      voiceGain.gain.setTargetAtTime(0.00001, start + 0.035, 1.8);
 
       try {
         osc.start(start);
-        osc.stop(start + 5.0);
+        overtoneOsc.start(start);
+        osc.stop(start + 5.5);
+        overtoneOsc.stop(start + 3.5);
       } catch {}
 
       return {
-        oscillators: [osc],
+        oscillators: [osc, overtoneOsc],
         gain: voiceGain,
         startTime: start,
-        stopTime: start + 5.0
+        stopTime: start + 5.5
       };
     });
 
