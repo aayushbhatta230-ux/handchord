@@ -2,6 +2,7 @@
 
 <p align="center">
   <a href="https://handchord.vercel.app/"><img src="https://img.shields.io/badge/Live_App-handchord.vercel.app-f59e0b?style=for-the-badge&logo=vercel&logoColor=black" alt="Live Demo" /></a>
+  <a href="https://github.com/aayushbhatta230-ux/handchord/actions"><img src="https://img.shields.io/badge/CI-Passing-10b981?style=for-the-badge&logo=githubactions&logoColor=white" alt="CI Passing" /></a>
   <img src="https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite" />
   <img src="https://img.shields.io/badge/MediaPipe-0078D4?style=for-the-badge&logo=google&logoColor=white" alt="MediaPipe" />
   <img src="https://img.shields.io/badge/Web_Audio-FFA500?style=for-the-badge" alt="Web Audio" />
